@@ -115,12 +115,12 @@
 
         // Cargar los menús ANTES de montar los calendarios, si no los días
         // del primer render salen sin color (solo se pintarían al cambiar de mes)
-        $.get('/api/menus')
+        $.get('/menus/api/menus')
             .done(function(data) { allMenus = data || []; })
             .always(function() { initPickers(); });
 
         // Mapa id -> nombre para el visor de preferencias
-        $.get('/api/recetas').done(function(data) {
+        $.get('/menus/api/recetas').done(function(data) {
             (data || []).forEach(function(r) { recetaNombres[r.id] = r.nombre; });
         });
     });
@@ -136,7 +136,7 @@
     }
 
     function loadPreferencias() {
-        $.get('/api/preferencias')
+        $.get('/menus/api/preferencias')
             .done(function(p) {
                 prefsLoaded = true;
                 let html = '';
@@ -180,7 +180,7 @@
         setEstado('<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Consultando la IA... puede tardar uno o dos minutos.</div>');
 
         $.ajax({
-            url: '/api/generar',
+            url: '/menus/api/generar',
             method: 'POST',
             contentType: 'application/json',
             timeout: 300000,
@@ -210,7 +210,7 @@
         }
         let html = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> ' +
                    guardado +
-                   ' &mdash; <a href="/">ver en la vista de Menús</a></div>';
+                   ' &mdash; <a href="/menus">ver en la vista de Menús</a></div>';
         html += '<div class="recipe-detail">';
         html += '<h3><i class="fas fa-calendar-alt"></i> ' + menu.titulo + '</h3>';
         menu.dias.forEach(function(d) {

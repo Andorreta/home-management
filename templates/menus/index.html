@@ -49,7 +49,7 @@
 
     // Cargar menús disponibles al iniciar
     $(document).ready(function() {
-        $.get('/api/menus')
+        $.get('/menus/api/menus')
             .done(function(data) {
                 allMenus = data;
                 const current = findCurrentMenu();
@@ -159,7 +159,7 @@
             return;
         }
         
-        $.get('/api/menu/' + menuName)
+        $.get('/menus/api/menu/' + menuName)
             .done(function(data) {
                 displayMenuData(data);
             })

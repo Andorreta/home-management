@@ -375,3 +375,21 @@ i {
     margin: 2px 3px;
     font-size: 0.9em;
 }
+/* Portal de inicio (home-management) */
+.portal-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+.portal-card .card {
+    padding: 1rem 0;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.portal-icon {
+    font-size: 3rem;
+    color: #007bff;
+    margin-bottom: 1rem;
+}
+.portal-cards .card-title {
+    font-weight: 600;
+}

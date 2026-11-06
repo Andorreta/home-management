@@ -1,87 +1,78 @@
-# Gestor de Menús - Aplicación Web con JSON
+# home-management
 
-Esta aplicación es una herramienta para gestionar menús semanales basada en recetas almacenadas en archivos JSON. Permite visualizar los menús, ver los ingredientes necesarios y las recetas completas.
+Aplicación web Flask para gestionar la casa: **menús semanales con recetas** (`/menus`)
+y **gastos e ingresos** (`/gastos`), con un portal de entrada en `/`.
+
+Nace de la fusión de home-cooking (gestión de menús y recetas) y home-expenses
+(gestión de gastos de la casa). Corre en el servidor de casa (teléfono Android con
+Termux: gunicorn + Caddy) y también en local.
 
 ## Características
 
-- Interfaz web responsive usando Flask y Bootstrap
-- Carga de datos desde archivos JSON organizados en carpetas
-- Visualización de menús semanales con recetas
-- Lista de la compra agrupada por ingredientes
-- Visualización detallada de recetas con ingredientes, utensilios y pasos
+- Portal de inicio con las secciones: Ver menús / Ver gastos
+- Menús semanales con recetas, lista de la compra agrupada y visor de recetas
+- Generación de menús con LLM local (Strata, API compatible OpenAI)
+- Interfaz responsive con Flask + Bootstrap
+- Datos en JSON (backend actual) con factory de almacenes para migrar a SQLite
+  sin tocar las vistas (patrón inspirado en ScholarCrawler)
 
 ## Estructura del Proyecto
 
 ```
 .
-├── app.py              # Punto de entrada de la aplicación
-├── requirements.txt    # Dependencias del proyecto
-├── templates/          # Plantillas HTML
-│   ├── base.html       # Plantilla base
-│   └── index.html      # Página principal
-├── data/               # Directorio para archivos JSON (se crea automáticamente)
-│   ├── menus/          # Archivos de menús semanales
-│   └── recetas/        # Archivos de recetas
-└── run.sh              # Script para ejecutar la aplicación
+├── app.py                  # App factory: create_app() registra blueprints y el store
+├── settings.py             # Config por entorno (HM_CONFIG=LocalConfig|ServerConfig)
+├── blueprints/
+│   ├── index.py            # Portal (/)
+│   ├── menus.py            # Menús/recetas/generar bajo /menus
+│   └── gastos.py           # Gastos (/gastos, en construcción)
+├── models/
+│   ├── factory.py          # create_store(nombre, settings) con fallback
+│   ├── base.py             # Interfaces de almacén
+│   └── json_store.py       # Backend JSON (data/*.json)
+├── services/
+│   ├── generation.py       # Generación de menús LLM + fusión con existentes
+│   ├── llm.py              # Cliente Strata/OpenAI-compatible
+│   └── menus_helpers.py    # Dominio: fechas, ingredientes, lista de la compra
+├── templates/              # base.html compartido + portal + menus/ + gastos/
+├── static/css/custom.css   # y static/vendor/ (flatpickr)
+├── data/                   # gitignoreado: menus/, recetas/, preferencias.json
+├── deploy/phone/           # Caddyfile y start_all.sh del servidor de casa
+└── run.sh                  # start/stop/install (agnóstico Termux/Linux)
 ```
 
 ## Requisitos
 
-- Python 3.6+
+- Python 3.6+ (en el servidor: Termux con Python y Gunicorn)
 - Flask
 
-## Instalación
-
-1. Clona este repositorio
-2. Crea un entorno virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   ```
-3. Instala las dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Ejecución
-
-Para ejecutar la aplicación:
+## Instalación y ejecución
 
 ```bash
-python app.py
+./run.sh install   # crea venv e instala dependencias
+./run.sh           # arranca (gunicorn en segundo plano si está disponible)
+./run.sh stop
 ```
 
-O usando el script de ejecución:
+En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 
-```bash
-./run.sh
-```
+## Configuración
 
-La aplicación se ejecutará en http://localhost:5000
+- `config_local.json` (gitignoreado): `strata_url`, `strata_api_key`, `strata_model`
+  para la generación de menús con LLM.
+- Variables de entorno: `HM_CONFIG` (`LocalConfig`/`ServerConfig`), `HM_STORE`
+  (`json`, pronto `sqlite`), `HM_DATA_DIR`, `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`.
 
-## Funcionalidades
+## URLs
 
-- Visualización de menús semanales
-- Lista de la compra agrupada por ingredientes
-- Visualización detallada de recetas
-- Carga automática de datos desde archivos JSON
+- `/` portal · `/menus` · `/menus/recetas` · `/menus/generar` · `/gastos`
+- API: `/menus/api/menus`, `/menus/api/menu/<id>`, `/menus/api/recetas`,
+  `/menus/api/receta/<id>`, `/menus/api/preferencias`, `/menus/api/generar` (POST)
+- Las URLs antiguas (`/home-cooking/*`, `/recetas`, `/generar`, `/api/*`)
+  se redirigen automáticamente a su equivalents en `/menus`.
 
-## Estructura de Datos
+## Despliegue en el servidor de casa (192.168.1.4)
 
-### Menús (en `data/menus/`)
-Cada archivo JSON representa un menú semanal con:
-- `titulo`: Título del menú
-- `dias`: Array de días con comidas y cenas
-
-### Recetas (en `data/recetas/`)
-Cada archivo JSON representa una receta con:
-- `nombre`: Nombre de la receta
-- `utensilios`: Lista de utensilios necesarios
-- `ingredientes`: Objeto con ingredientes y cantidades
-- `pasos`: Lista de pasos de preparación
-
-## Uso
-
-1. Ejecuta la aplicación con `python app.py` o `./run.sh`
-2. Abre tu navegador en http://localhost:5000
-3. Selecciona un menú para ver los detalles
+Flujo git: desarrollo local → push (usuario nemesis) → `git pull` en el teléfono →
+`~/web-server/start_all.sh stop && start_all.sh start`. Los ficheros del teléfono
+viven versionados en `deploy/phone/`.

@@ -1,0 +1,15 @@
+{
+	auto_https disable_redirects
+	http_port 8080
+	https_port 8443
+}
+
+andorreta.hopto.org, 192.168.1.4, mini-server {
+	tls internal
+
+	# home-management es la única app: portal en /, menús en /menus, gastos en /gastos.
+	# Las URLs antiguas (/home-cooking*, /api/*, /recetas, /generar) las redirige la propia app.
+	handle /* {
+		reverse_proxy localhost:5000
+	}
+}

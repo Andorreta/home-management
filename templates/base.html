@@ -164,9 +164,11 @@
             <h1><i class="fas fa-utensils"></i> {% block header_title %}Gestor de Menús{% endblock %}</h1>
             <p class="lead"><i class="fas fa-calendar-alt"></i> {% block header_subtitle %}Visualización y manejo de menús semanales con recetas{% endblock %}</p>
             <nav class="view-nav">
-                <a href="/" class="view-tab {% if request.path == '/' %}active{% endif %}"><i class="fas fa-calendar-week"></i> Menús</a>
-                <a href="/recetas" class="view-tab {% if request.path == '/recetas' %}active{% endif %}"><i class="fas fa-book-open"></i> Recetas</a>
-                <a href="/generar" class="view-tab {% if request.path == '/generar' %}active{% endif %}"><i class="fas fa-magic"></i> Generar</a>
+                <a href="{{ url_for('index.portal') }}" class="view-tab {% if request.path == '/' %}active{% endif %}"><i class="fas fa-house"></i> Inicio</a>
+                <a href="{{ url_for('menus.index') }}" class="view-tab {% if request.path == '/menus/' %}active{% endif %}"><i class="fas fa-calendar-week"></i> Menús</a>
+                <a href="{{ url_for('menus.recetas') }}" class="view-tab {% if request.path == '/menus/recetas' %}active{% endif %}"><i class="fas fa-book-open"></i> Recetas</a>
+                <a href="{{ url_for('menus.generar') }}" class="view-tab {% if request.path == '/menus/generar' %}active{% endif %}"><i class="fas fa-magic"></i> Generar</a>
+                <a href="{{ url_for('gastos.index') }}" class="view-tab {% if request.path.startswith('/gastos') %}active{% endif %}"><i class="fas fa-receipt"></i> Gastos</a>
             </nav>
         </div>
     </div>
@@ -177,7 +179,7 @@
     
     <div class="footer">
         <div class="container">
-            <p>© 2026 Gestor de Menús - Todos los derechos reservados</p>
+            <p>© 2026 home-management - Todos los derechos reservados</p>
         </div>
     </div>
     

@@ -32,7 +32,13 @@ install_dependencies() {
         rm -rf venv
     fi
     
-    python -m venv venv --system-site-packages
+    # --system-site-packages solo en Termux (reutiliza el Python/Flask del pkg de Termux).
+    # En un Linux normal NUNCA: pip vería el site-packages del sistema y podría desinstalar paquetes del SO.
+    if echo "$PREFIX" | grep -q "com.termux"; then
+        python -m venv venv --system-site-packages
+    else
+        python -m venv venv
+    fi
     
     echo -e "${BLUE}Instalando dependencias del sistema...${NC}"
     ./venv/bin/python -m pip install --upgrade pip

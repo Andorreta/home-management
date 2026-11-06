@@ -41,7 +41,7 @@
 
     // Cargar el listado de recetas al iniciar
     $(document).ready(function() {
-        $.get('/api/recetas')
+        $.get('/menus/api/recetas')
             .done(function(data) {
                 allRecipes = data;
                 if (allRecipes.length) {
@@ -89,7 +89,7 @@
         renderRecipeList();
         $('#recipe-list-card').hide();
 
-        $.get('/api/receta/' + id)
+        $.get('/menus/api/receta/' + id)
             .done(function(receta) {
                 $('#recetaBtnLabel').text(receta.nombre || id);
                 displayRecipe(receta);
