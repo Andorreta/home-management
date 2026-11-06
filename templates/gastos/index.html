@@ -265,7 +265,11 @@
                     },
                     y: {
                         beginAtZero: true,
-                        ticks: { callback: v => fmtEUR.format(v), font: { size: 10 } }
+                        ticks: {
+                            callback: v => fmtEUR.format(v),
+                            font: { size: 10 },
+                            maxTicksLimit: 6
+                        }
                     }
                 }
             }

@@ -2,9 +2,16 @@
 
 /* ---------- Base ---------- */
 body {
-    padding-top: 20px;
+    padding-top: 0;
     background-color: #f8f9fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main.container {
+    flex: 1 0 auto;
 }
 
 /* Enlace de salto para navegación por teclado */
@@ -38,7 +45,7 @@ summary:focus-visible {
 
 /* ---------- Cabecera ---------- */
 .header {
-    background: linear-gradient(135deg, #007bff, #0056b3);
+    background: linear-gradient(135deg, #0b5ed7, #004085);
     color: #fff;
     padding: 1.5rem 0;
     margin-bottom: 2rem;
@@ -98,6 +105,11 @@ summary:focus-visible {
     color: #0056b3;
     border-color: #fff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.view-tab:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
 }
 
 /* ---------- Tarjetas y contenedores ---------- */
@@ -522,7 +534,7 @@ summary:hover {
 
 @media (max-width: 575.98px) {
     body {
-        padding-top: 12px;
+        padding-top: 0;
     }
 
     .header {
@@ -543,14 +555,7 @@ summary:hover {
     .view-nav {
         gap: 6px;
         margin-top: 0.8rem;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        padding-bottom: 4px;
-        scrollbar-width: none;
-    }
-
-    .view-nav::-webkit-scrollbar {
-        display: none;
+        flex-wrap: wrap;
     }
 
     .view-tab {
@@ -616,5 +621,10 @@ summary:hover {
 
     .tabla-cards td[data-label=""] {
         justify-content: flex-end;
+    }
+
+    .tabla-cards .btn {
+        min-width: 2.5rem;
+        min-height: 2.5rem;
     }
 }
