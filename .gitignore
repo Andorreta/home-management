@@ -8,3 +8,4 @@ data/preferencias.json
 config_local.json
 data/expenses.db
 data/tickets/
+data/menus.db

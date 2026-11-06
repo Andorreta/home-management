@@ -6,7 +6,7 @@ Backend JSON: envuelve exactamente el comportamiento actual de home-cooking
 import json
 import os
 
-from .base import MenusStore
+from .base import DEFAULT_PREFERENCIAS, MenusStore
 
 
 class JsonStore(MenusStore):
@@ -39,12 +39,7 @@ class JsonStore(MenusStore):
     # --- Preferencias ---
 
     def load_preferencias(self):
-        defaults = {
-            'restricciones': [],
-            'platos_habituales': [],
-            'favoritas': [],
-            'evitar_repetir_de_semanas': 4,
-        }
+        defaults = dict(DEFAULT_PREFERENCIAS)
         path = os.path.join(self.data_dir, 'preferencias.json')
         if os.path.exists(path):
             try:

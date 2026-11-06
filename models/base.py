@@ -3,6 +3,13 @@ Interfaces de los almacenes de datos (factory al estilo ScholarCrawler).
 Los blueprints solo hablan con estas interfaces; nunca con ficheros ni SQL.
 """
 
+DEFAULT_PREFERENCIAS = {
+    'restricciones': [],
+    'platos_habituales': [],
+    'favoritas': [],
+    'evitar_repetir_de_semanas': 4,
+}
+
 
 class Store(object):
     """Interfaz común a todos los backends de datos."""
@@ -14,9 +21,7 @@ class Store(object):
     # --- Preferencias ---
 
     def load_preferencias(self):
-        raise NotImplementedError
-
-    # --- Menús ---
+        raise NotImplementedError    # --- Menús ---
 
     def load_menus(self):
         """{nombre_menú: datos} como clave los ids de menú."""

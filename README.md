@@ -22,14 +22,17 @@ Termux: gunicorn + Caddy) y también en local.
 .
 ├── app.py                  # App factory: create_app() registra blueprints y el store
 ├── settings.py             # Config por entorno (HM_CONFIG=LocalConfig|ServerConfig)
+├── migrate_menus_to_sqlite.py  # Migración idempotente JSON → data/menus.db (con verificación)
 ├── blueprints/
 │   ├── index.py            # Portal (/)
 │   ├── menus.py            # Menús/recetas/generar bajo /menus
-│   └── gastos.py           # Gastos (/gastos, en construcción)
+│   └── gastos.py           # Gastos (/gastos): movimientos, resumen, tickets
 ├── models/
-│   ├── factory.py          # create_store(nombre, settings) con fallback
+│   ├── factory.py          # create_store / create_gastos_store con fallback
 │   ├── base.py             # Interfaces de almacén
-│   └── json_store.py       # Backend JSON (data/*.json)
+│   ├── json_store.py       # Backend JSON (respaldo de menús/recetas)
+│   ├── sqlite_store.py     # Gastos: tabla movimientos en data/expenses.db
+│   └── sqlite_menus_store.py  # Menús/recetas: documental en data/menus.db
 ├── services/
 │   ├── generation.py       # Generación de menús LLM + fusión con existentes
 │   ├── llm.py              # Cliente Strata/OpenAI-compatible
@@ -61,7 +64,10 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 - `config_local.json` (gitignoreado): `strata_url`, `strata_api_key`, `strata_model`
   para la generación de menús con LLM.
 - Variables de entorno: `HM_CONFIG` (`LocalConfig`/`ServerConfig`), `HM_STORE`
-  (`json`, pronto `sqlite`), `HM_DATA_DIR`, `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`.
+  (`sqlite` por defecto con fallback a `json`, o `json`), `HM_MENUS_DB`, `HM_GASTOS_DB`,
+  `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`, `STRATA_VISION_MODEL`.
+- Tras clonar en una máquina nueva: `python migrate_menus_to_sqlite.py` para volcar
+  los JSON de `data/` a `data/menus.db` (sin Borrar los JSON; son el respaldo).
 
 ## URLs
 

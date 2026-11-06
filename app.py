@@ -22,8 +22,11 @@ def create_app(config_class=None):
     config_class = config_class or get_config()
     app.config.from_object(config_class)
 
-    # Almacén de datos (con fallback automático a JSON si el backend falla)
-    app.store = create_store(app.config['STORE'], {'data_dir': app.config['DATA_DIR']})
+    # Almacén de datos (sqlite con fallback automático a JSON si no hay BD migrada)
+    app.store = create_store(app.config['STORE'], {
+        'data_dir': app.config['DATA_DIR'],
+        'db_path': app.config['MENUS_DB'],
+    })
 
     # Almacén de gastos e ingresos (SQLite, data/expenses.db)
     app.gastos_store = create_gastos_store(app.config['GASTOS_STORE'], {'db_path': app.config['GASTOS_DB']})

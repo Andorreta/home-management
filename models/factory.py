@@ -10,9 +10,23 @@ def create_store(name, settings):
     """
     Crea un store de datos a partir de su nombre y su configuración.
     El diccionario `settings` tiene claves distintas para cada backend; ver
-    cada store. En caso de no poder conectar, hace fallback al store JSON.
-    (Los menús siguen en JSON; migrarán a su propia BD en una fase posterior.)
+    cada store. En caso de no poder conectar (o de encontrar la BD de menús
+    vacía, migración pendiente), hace fallback al store JSON.
     """
+    if name == 'sqlite':
+        try:
+            from . import sqlite_menus_store
+            store = sqlite_menus_store.SqliteMenusStore(settings)
+            if store.check_connection():
+                store.init_db()
+                if not store.is_empty():
+                    return store
+                print('La base de datos de menús está vacía '
+                      '(¿falta migrate_menus_to_sqlite.py?); usando json.')
+        except Exception as e:
+            print(f'Store sqlite de menús no disponible ({e}); usando json.')
+        name = 'json'
+
     if name == 'json':
         from . import json_store
         store = json_store.JsonStore(settings)

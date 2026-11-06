@@ -11,8 +11,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class Config(object):
-    # Backend de datos: 'json' (ficheros en DATA_DIR) o 'sqlite' (llegará en fases posteriores)
-    STORE = os.environ.get('HM_STORE', 'json')
+    # Backend de datos de menús/recetas: 'sqlite' (data/menus.db, con fallback
+    # automático a 'json' si la BD no existe o está vacía) o 'json' puro
+    STORE = os.environ.get('HM_STORE', 'sqlite')
+    MENUS_DB = os.environ.get('HM_MENUS_DB', os.path.join(BASE_DIR, 'data', 'menus.db'))
 
     # Directorio de datos relativo a la raíz del proyecto
     DATA_DIR = os.environ.get('HM_DATA_DIR', os.path.join(BASE_DIR, 'data'))
