@@ -11,7 +11,7 @@ import os
 
 from flask import Flask, redirect, request
 
-from models.factory import create_store
+from models.factory import create_gastos_store, create_store
 from settings import get_config, load_llm_config
 
 
@@ -24,6 +24,9 @@ def create_app(config_class=None):
 
     # Almacén de datos (con fallback automático a JSON si el backend falla)
     app.store = create_store(app.config['STORE'], {'data_dir': app.config['DATA_DIR']})
+
+    # Almacén de gastos e ingresos (SQLite, data/expenses.db)
+    app.gastos_store = create_gastos_store(app.config['GASTOS_STORE'], {'db_path': app.config['GASTOS_DB']})
 
     # Configuración del LLM (Strata) compartida por los blueprints
     app.llm_config = load_llm_config(config_class)

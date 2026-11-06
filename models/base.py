@@ -32,3 +32,32 @@ class MenusStore(Store):
     def load_recetas(self):
         """{id_receta: datos}"""
         raise NotImplementedError
+
+
+class GastosStore(Store):
+    """Almacén de movimientos (gastos e ingresos) de la casa."""
+
+    def add_movimiento(self, fecha, tipo, importe, categoria, descripcion):
+        """Valida e inserta. Devuelve el movimiento creado (dict). Lanza ValueError si es inválido."""
+        raise NotImplementedError
+
+    def update_movimiento(self, mov_id, fecha, tipo, importe, categoria, descripcion):
+        """Devuelve el movimiento actualizado (dict) o None si no existe."""
+        raise NotImplementedError
+
+    def delete_movimiento(self, mov_id):
+        """True si existía y se borró."""
+        raise NotImplementedError
+
+    def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None):
+        """Movimientos más recientes primero."""
+        raise NotImplementedError
+
+    def get_resumen(self, meses=12):
+        """Lista cronológica de los últimos `meses` meses calendario:
+        [{mes, ingresos, gastos, balance, acumulado}] (acumulado incluye meses anteriores)."""
+        raise NotImplementedError
+
+    def list_categorias(self):
+        """{'gasto': [...], 'ingreso': [...]} usadas hasta ahora."""
+        raise NotImplementedError

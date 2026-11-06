@@ -17,6 +17,10 @@ class Config(object):
     # Directorio de datos relativo a la raíz del proyecto
     DATA_DIR = os.environ.get('HM_DATA_DIR', os.path.join(BASE_DIR, 'data'))
 
+    # Almacén de gastos (nace sobre SQLite; una BD por módulo)
+    GASTOS_STORE = os.environ.get('HM_GASTOS_STORE', 'sqlite')
+    GASTOS_DB = os.environ.get('HM_GASTOS_DB', os.path.join(BASE_DIR, 'data', 'expenses.db'))
+
     # Config del LLM (Strata, API compatible OpenAI): config_local.json o variables de entorno
     STRATA_URL = os.environ.get('STRATA_URL', 'http://192.168.1.12:9931')
     STRATA_API_KEY = os.environ.get('STRATA_API_KEY', '')
