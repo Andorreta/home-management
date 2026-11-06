@@ -11,10 +11,14 @@ Termux: gunicorn + Caddy) y también en local.
 
 - Portal de inicio con las secciones: Ver menús / Ver gastos
 - Menús semanales con recetas, lista de la compra agrupada y visor de recetas
-- Generación de menús con LLM local (Strata, API compatible OpenAI)
+- CRUD de recetas (crear/editar/borrar con aviso si están en menús) y editor de
+  menús (cambar plato por día, crear menús vacíos, borrar semanas)
+- Generación de menús con LLM local (Strata, API compatible OpenAI) y campo de
+  feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt
 - Interfaz responsive con Flask + Bootstrap
-- Datos en JSON (backend actual) con factory de almacenes para migrar a SQLite
-  sin tocar las vistas (patrón inspirado en ScholarCrawler)
+- Datos en SQLite (`data/menus.db` y `data/expenses.db`) con factory de almacenes;
+  los menús caen automáticamente al respaldo JSON si la BD está sin migrar
+  (patrón inspirado en ScholarCrawler)
 
 ## Estructura del Proyecto
 
@@ -35,8 +39,9 @@ Termux: gunicorn + Caddy) y también en local.
 │   └── sqlite_menus_store.py  # Menús/recetas: documental en data/menus.db
 ├── services/
 │   ├── generation.py       # Generación de menús LLM + fusión con existentes
-│   ├── llm.py              # Cliente Strata/OpenAI-compatible
-│   └── menus_helpers.py    # Dominio: fechas, ingredientes, lista de la compra
+│   ├── llm.py              # Cliente Strata/OpenAI-compatible (texto y visión)
+│   ├── menus_helpers.py    # Dominio: fechas, ingredientes, validación CRUD
+│   └── tickets.py          # Análisis de fotos de tickets con visión
 ├── templates/              # base.html compartido + portal + menus/ + gastos/
 ├── static/css/custom.css   # y static/vendor/ (flatpickr)
 ├── data/                   # gitignoreado: menus/, recetas/, preferencias.json
@@ -67,7 +72,7 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
   (`sqlite` por defecto con fallback a `json`, o `json`), `HM_MENUS_DB`, `HM_GASTOS_DB`,
   `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`, `STRATA_VISION_MODEL`.
 - Tras clonar en una máquina nueva: `python migrate_menus_to_sqlite.py` para volcar
-  los JSON de `data/` a `data/menus.db` (sin Borrar los JSON; son el respaldo).
+  los JSON de `data/` a `data/menus.db` (sin borrar los JSON; son el respaldo).
 
 ## URLs
 

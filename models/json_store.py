@@ -62,7 +62,28 @@ class JsonStore(MenusStore):
             json.dump(menu, f, ensure_ascii=False, indent=2)
             f.write('\n')
 
+    def delete_menu(self, menu_id):
+        path = os.path.join(self.data_dir, 'menus', menu_id + '.json')
+        if os.path.isfile(path):
+            os.remove(path)
+            return True
+        return False
+
     # --- Recetas ---
 
     def load_recetas(self):
         return self._load_json_files(os.path.join(self.data_dir, 'recetas'))
+
+    def save_receta(self, receta_id, receta):
+        directory = os.path.join(self.data_dir, 'recetas')
+        os.makedirs(directory, exist_ok=True)
+        with open(os.path.join(directory, receta_id + '.json'), 'w', encoding='utf-8') as f:
+            json.dump(receta, f, ensure_ascii=False, indent=2)
+            f.write('\n')
+
+    def delete_receta(self, receta_id):
+        path = os.path.join(self.data_dir, 'recetas', receta_id + '.json')
+        if os.path.isfile(path):
+            os.remove(path)
+            return True
+        return False

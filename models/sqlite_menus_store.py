@@ -102,6 +102,11 @@ class SqliteMenusStore(MenusStore):
                  menu.get('fecha_fin'), json.dumps(menu, ensure_ascii=False)),
             )
 
+    def delete_menu(self, menu_id):
+        with self._conn() as conn:
+            cur = conn.execute('DELETE FROM menus WHERE id = ?', (menu_id,))
+        return cur.rowcount > 0
+
     # --- Recetas ---
 
     def load_recetas(self):

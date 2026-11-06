@@ -10,10 +10,12 @@ from . import llm
 from . import menus_helpers as helpers
 
 
-def generar_menu(store, cfg, fecha_inicio, fecha_fin):
+def generar_menu(store, cfg, fecha_inicio, fecha_fin, feedback=''):
     """
     Valida fechas, pide un menú al LLM y lo guarda (creando o fusionando con
-    los menús que solapen). Devuelve (respuesta_dict, codigo_http).
+    los menús que solapen). `feedback` es un texto libre del usuario con el
+    contexto del momento ("esta semana estoy flojo, hazlo simple").
+    Devuelve (respuesta_dict, codigo_http).
     """
     try:
         d_ini = datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -50,13 +52,23 @@ def generar_menu(store, cfg, fecha_inicio, fecha_fin):
     ) or '(ninguna)'
     favoritas_txt = ', '.join(f'{rid} ({catalogo.get(rid, "?")})' for rid in sorted(favoritas) if rid in catalogo) or '(sin lista)'
 
+    feedback_txt = str(feedback or '').strip()[:1000]
+    bloque_feedback = ''
+    if feedback_txt:
+        bloque_feedback = f"""
+CONTEXTO DE ESTA SEMANA (el usuario explica cómo está ahora mismo; ajusta el
+menú a lo que pide —más simple, más ligero, reconfortante...— SIN romper nunca
+las restricciones obligatorias ni las reglas de composición):
+{feedback_txt}
+"""
+
     system = ('Eres el planificador de comidas de un usuario con hipersensibilidad sensorial (autismo). '
               'Respetas estrictamente sus restricciones. Respondes SOLO con JSON válido, sin explicaciones ni cercas de código.')
     user_prompt = f"""Genera un menú de {n_dias} días, del {fecha_inicio} al {fecha_fin} (días: {rango_dias}).
 
 RESTRICCIONES OBLIGATORIAS:
 {chr(10).join('- ' + r for r in prefs.get('restricciones', []))}
-
+{bloque_feedback}
 CATÁLOGO DE RECETAS DISPONIBLES (ya filtradas por utensilios; elige SOLO ids exactos de esta lista; id: nombre):
 {catalogo_txt}
 

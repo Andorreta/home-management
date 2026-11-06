@@ -212,3 +212,125 @@ def normalize_receta(receta):
             new_ing[nk] = nv
         receta['ingredientes'] = new_ing
     return receta
+
+
+# --- Soporte del CRUD (fase 5) ---
+
+ID_RE = re.compile(r'^[a-z0-9][a-z0-9_]{0,59}$')
+
+SLUG_TRADE = str.maketrans({
+    'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u',
+    'ñ': 'n', 'à': 'a', 'è': 'e', 'ì': 'i', 'ò': 'o', 'ù': 'u',
+})
+
+
+def slugify(nombre):
+    """'Pollo al curry (con arroz)' -> 'pollo_al_curry_con_arroz'."""
+    s = nombre.lower().strip().translate(SLUG_TRADE)
+    s = re.sub(r'[^a-z0-9]+', '_', s)
+    return s.strip('_')[:60]
+
+
+def receta_id_disponible(nombre, existentes):
+    """Id slug único para una receta nueva (huye de 'sobras' y colisiones)."""
+    base = slugify(nombre) or 'receta'
+    candidate = base
+    n = 2
+    while candidate == 'sobras' or candidate in existentes:
+        candidate = f'{base}_{n}'
+        n += 1
+    return candidate
+
+
+def validar_receta(datos):
+    """Comprueba el cuerpo enviado por la web. Devuelve (receta_limpia, error)."""
+    if not isinstance(datos, dict):
+        return None, 'El cuerpo debe ser un objeto JSON'
+
+    nombre = str(datos.get('nombre') or '').strip()
+    if not nombre:
+        return None, 'La receta necesita un nombre'
+
+    ingredientes = datos.get('ingredientes')
+    if not isinstance(ingredientes, dict) or not ingredientes:
+        return None, 'La receta necesita al menos un ingrediente'
+    limpios = {}
+    for clave, valor in ingredientes.items():
+        clave = str(clave).strip()
+        if not clave:
+            return None, 'Hay un ingrediente sin nombre'
+        if isinstance(valor, dict):
+            valor = {
+                'cantidad': str(valor.get('cantidad', '')).strip(),
+                'opcional': valor.get('opcional') in (True, 'yes', 'sí'),
+            }
+            if not valor['opcional']:
+                del valor['opcional']
+        elif isinstance(valor, bool):
+            return None, f'Cantidad inválida en "{clave}"'
+        elif isinstance(valor, (int, float)):
+            valor = str(valor)
+        elif isinstance(valor, str):
+            valor = valor.strip()
+        else:
+            return None, f'Cantidad inválida en "{clave}"'
+        limpios[clave] = valor
+
+    def lista_texto(clave):
+        valores = datos.get(clave) or []
+        if isinstance(valores, str):
+            valores = [valores]
+        if not isinstance(valores, list):
+            return None, f'"{clave}" debe ser una lista'
+        return [str(v).strip() for v in valores if str(v).strip()], None
+
+    utensilios, err = lista_texto('utensilios')
+    if err:
+        return None, err
+    pasos, err = lista_texto('pasos')
+    if err:
+        return None, err
+
+    receta = {'nombre': nombre, 'utensilios': utensilios,
+              'ingredientes': limpios, 'pasos': pasos}
+    notas = str(datos.get('notas') or '').strip()
+    if notas:
+        receta['notas'] = notas
+    return receta, None
+
+
+def referencian_receta(menus_data, receta_id):
+    """Ids de los menús que usan una receta en comida o cena."""
+    return sorted(
+        name for name, menu in menus_data.items()
+        if any(dia.get('id_comida') == receta_id or dia.get('id_cena') == receta_id
+               for dia in menu.get('dias', []))
+    )
+
+
+def validar_menu(menu, catalogo_ids):
+    """Valida el payload de edición de un menú. Devuelve (menu_limpio, error)."""
+    if not isinstance(menu, dict) or not isinstance(menu.get('dias'), list) or not menu['dias']:
+        return None, 'El menú necesita días'
+    dias = []
+    for i, dia in enumerate(menu['dias'], start=1):
+        if not isinstance(dia, dict):
+            return None, f'Día {i} inválido'
+        entrada = {'dia': str(dia.get('dia') or '').strip() or f'Día {i}'}
+        for clave in ('comida', 'cena'):
+            rid = str(dia.get(f'id_{clave}') or '').strip()
+            nombre = str(dia.get(clave) or '').strip()
+            if rid == 'sobras':
+                entrada[clave] = nombre or 'Sobras'
+                entrada[f'id_{clave}'] = 'sobras'
+            elif rid in catalogo_ids:
+                entrada[clave] = nombre or rid
+                entrada[f'id_{clave}'] = rid
+            else:
+                return None, f'Día {i}: la {clave} no es una receta del catálogo ni sobras'
+        dias.append(entrada)
+    limpio = dict(menu)
+    limpio['dias'] = dias
+    if not str(limpio.get('titulo') or '').strip():
+        limpio['titulo'] = 'Menú'
+    return limpio, None

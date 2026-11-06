@@ -21,7 +21,9 @@ class Store(object):
     # --- Preferencias ---
 
     def load_preferencias(self):
-        raise NotImplementedError    # --- Menús ---
+        raise NotImplementedError
+
+    # --- Menús ---
 
     def load_menus(self):
         """{nombre_menú: datos} como clave los ids de menú."""
@@ -30,12 +32,23 @@ class Store(object):
     def save_menu(self, menu_id, menu):
         raise NotImplementedError
 
+    def delete_menu(self, menu_id):
+        """True si existía y se borró."""
+        raise NotImplementedError
+
 
 class MenusStore(Store):
     """El store de menús también sirve el catálogo de recetas."""
 
     def load_recetas(self):
         """{id_receta: datos}"""
+        raise NotImplementedError
+
+    def save_receta(self, receta_id, receta):
+        raise NotImplementedError
+
+    def delete_receta(self, receta_id):
+        """True si existía y se borró."""
         raise NotImplementedError
 
 
