@@ -499,6 +499,12 @@ summary:hover {
     display: block;
 }
 
+@media (max-width: 991.98px) {
+    .fechas-form > .col-md-4 {
+        width: 100%;
+    }
+}
+
 /* ---------- Footer ---------- */
 .footer {
     background-color: #343a40;
