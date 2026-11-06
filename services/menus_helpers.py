@@ -181,8 +181,44 @@ def process_ingredient(ingrediente, data, mandatory_map, optional_map):
         target_map[ingrediente][unit_key] = current_val + val
 
 
-def get_shopping_list(menus_data, recetas_data):
-    """Genera la lista de la compra agrupada por ingredientes"""
+_ACENTOS = str.maketrans({'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+                         'à': 'a', 'è': 'e', 'ì': 'i', 'ò': 'o', 'ù': 'u', 'ü': 'u'})
+
+
+def _norm_palabra(texto):
+    """minúsculas, sin acentos, sin símbolos: para comparar nombres de ingrediente."""
+    s = str(texto).lower().translate(_ACENTOS)
+    return re.sub(r'[^a-z0-9]+', ' ', s).strip()
+
+
+def esta_excluido(nombre, exclusiones):
+    """True si el ingrediente contiene una exclusión como palabra suelta
+    ('sal' casa con 'sal' y 'sal gruesa' pero no con 'salmón'; plural simple incluido)."""
+    n = _norm_palabra(nombre)
+    if not n:
+        return False
+    for ex in exclusiones:
+        e = _norm_palabra(ex)
+        if not e:
+            continue
+        if n == e or re.search(r'(?<![a-z0-9])' + re.escape(e) + r's?(?![a-z0-9])', n):
+            return True
+    return False
+
+
+def get_shopping_list(menus_data, recetas_data, exclusiones=None):
+    """Genera la lista de la compra agrupada por ingredientes.
+    `exclusiones` (despensa básica) quita los ingredientes que la contengan
+    como palabra suelta: 'sal' excluye 'sal' y 'sal gruesa', no 'salmón'."""
+    mandatory_ingredients, optional_ingredients = _shopping_raw(menus_data, recetas_data)
+    if exclusiones:
+        for mapa in (mandatory_ingredients, optional_ingredients):
+            for clave in [k for k in mapa if esta_excluido(k, exclusiones)]:
+                del mapa[clave]
+    return mandatory_ingredients, optional_ingredients
+
+
+def _shopping_raw(menus_data, recetas_data):
     mandatory_ingredients = {}
     optional_ingredients = {}
 

@@ -41,6 +41,34 @@ def api_preferencias():
     return jsonify(store().load_preferencias())
 
 
+@bp.route('/api/preferencias', methods=['PUT'])
+def api_guardar_preferencias():
+    """Actualiza solo las claves permitidas (respeta el resto)."""
+    datos = request.get_json(silent=True) or {}
+    if not isinstance(datos, dict):
+        return jsonify({'error': 'El cuerpo debe ser un objeto JSON'}), 400
+
+    lista_de_texto = 'Debe ser una lista de textos'
+    prefs = store().load_preferencias()
+    for clave in ('despensa_base', 'restricciones', 'platos_habituales', 'favoritas'):
+        if clave in datos:
+            v = datos[clave]
+            if not isinstance(v, list) or not all(isinstance(x, str) and x.strip() for x in v):
+                return jsonify({'error': f'{clave}: {lista_de_texto}'}), 400
+            prefs[clave] = [str(x).strip() for x in v]
+    if 'evitar_repetir_de_semanas' in datos:
+        try:
+            n = int(datos['evitar_repetir_de_semanas'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'evitar_repetir_de_semanas debe ser un número'}), 400
+        if not (0 <= n <= 12):
+            return jsonify({'error': 'evitar_repetir_de_semanas debe estar entre 0 y 12'}), 400
+        prefs['evitar_repetir_de_semanas'] = n
+
+    store().save_preferencias(prefs)
+    return jsonify({'ok': True, 'preferencias': prefs})
+
+
 @bp.route('/api/menus')
 def api_menus():
     menus_data = store().load_menus()
@@ -67,14 +95,18 @@ def api_menu(menu_name):
     if menu_name in menus_data:
         menu = menus_data[menu_name]
 
-        # Generar lista de la compra
-        mandatory_ingredients, optional_ingredients = helpers.get_shopping_list({menu_name: menu}, recetas_data)
+        # Generar lista de la compra (sin la despensa básica del usuario)
+        prefs = store().load_preferencias()
+        despensa = prefs.get('despensa_base', [])
+        mandatory_ingredients, optional_ingredients = helpers.get_shopping_list(
+            {menu_name: menu}, recetas_data, exclusiones=despensa)
 
         # Preparar datos para la respuesta
         menu_data = {
             'menu': menu,
             'mandatory_ingredients': mandatory_ingredients,
             'optional_ingredients': optional_ingredients,
+            'despensa_base': despensa,
             'recetas': recetas_data
         }
         return jsonify(menu_data)

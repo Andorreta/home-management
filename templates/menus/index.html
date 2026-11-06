@@ -235,6 +235,10 @@
         // Lista de la compra
         html += '<details class="shopping-list">';
         html += '<summary><h4 class="mb-0"><i class="fas fa-shopping-cart"></i> Lista de la compra</h4></summary>';
+        if (data.despensa_base && data.despensa_base.length) {
+            html += '<p class="text-muted small mb-2"><i class="fas fa-home"></i> Excluidos por despensa básica: ' +
+                    data.despensa_base.map(escapeHtml).join(', ') + '</p>';
+        }
         
         html += '<div class="row">';
         html += '<div class="col-md-6">';

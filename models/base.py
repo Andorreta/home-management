@@ -8,6 +8,8 @@ DEFAULT_PREFERENCIAS = {
     'platos_habituales': [],
     'favoritas': [],
     'evitar_repetir_de_semanas': 4,
+    # Ingredientes que nunca van a la lista de la compra (siempre hay en casa)
+    'despensa_base': ['agua', 'sal', 'aceite'],
 }
 
 
@@ -21,6 +23,9 @@ class Store(object):
     # --- Preferencias ---
 
     def load_preferencias(self):
+        raise NotImplementedError
+
+    def save_preferencias(self, preferencias):
         raise NotImplementedError
 
     # --- Menús ---

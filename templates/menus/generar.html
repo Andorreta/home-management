@@ -162,11 +162,42 @@
                 html += '</div>';
                 html += '<div class="section-title"><i class="fas fa-rotate"></i> Anti-repetición</div>';
                 html += '<p>No se repiten las recetas de las últimas <strong>' + (p.evitar_repetir_de_semanas || 0) + '</strong> semanas (las favoritas se salvan de la exclusión).</p>';
+
+                // Despensa básica (editable): no va a la lista de la compra
+                html += '<div class="section-title"><i class="fas fa-home"></i> Despensa básica <span class="text-muted small">(nunca aparece en la lista de la compra)</span></div>';
+                html += '<p class="text-muted small">Ingredientes que siempre tienes en casa. Se excluyen de la lista cuando una receta los lleva (coincidencia por palabra: "sal" quita "sal" y "sal gruesa", pero no "salmón").</p>';
+                html += '<div class="input-group">' +
+                        '<input type="text" id="prefs-despensa" class="form-control" value="' +
+                        ((p.despensa_base || []).join(', ')) + '" placeholder="agua, sal, aceite">' +
+                        '<button class="btn btn-outline-primary" type="button" onclick="guardarDespensa()"><i class="fas fa-save"></i> Guardar</button>' +
+                        '</div>';
+                html += '<div id="prefs-despensa-msg" class="small mt-2" style="display:none"></div>';
+
                 $('#prefs-body').html(html);
             })
             .fail(function() {
                 $('#prefs-body').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las preferencias.</div>');
             });
+    }
+
+    function guardarDespensa() {
+        const txt = $('#prefs-despensa').val() || '';
+        const items = txt.split(',').map(s => s.trim()).filter(Boolean);
+        const msg = $('#prefs-despensa-msg');
+        $.ajax({
+            url: '/menus/api/preferencias', method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ despensa_base: items })
+        })
+        .done(function() {
+            msg.removeClass('text-danger').addClass('text-success')
+               .html('<i class="fas fa-check"></i> Guardado. La lista de la compra se actualiza al volver a abrir un menú.')
+               .show();
+        })
+        .fail(function(xhr) {
+            const err = (xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar';
+            msg.removeClass('text-success').addClass('text-danger').html('<i class="fas fa-exclamation-triangle"></i> ' + err).show();
+        });
     }
 
     function setEstado(html) {

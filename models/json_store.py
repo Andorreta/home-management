@@ -50,6 +50,11 @@ class JsonStore(MenusStore):
                 print(f"Error leyendo preferencias.json: {e}")
         return defaults
 
+    def save_preferencias(self, preferencias):
+        with open(os.path.join(self.data_dir, 'preferencias.json'), 'w', encoding='utf-8') as f:
+            json.dump(preferencias, f, ensure_ascii=False, indent=2)
+            f.write('\n')
+
     # --- Menús ---
 
     def load_menus(self):
