@@ -393,3 +393,43 @@ i {
 .portal-cards .card-title {
     font-weight: 600;
 }
+
+/* Tablas responsive: en pantallas estrechas cada fila se vuelve una
+   tarjeta vertical (la tabla ocupa todo el ancho de la pantalla) */
+@media (max-width: 575.98px) {
+    .tabla-cards,
+    .tabla-cards tbody,
+    .tabla-cards tr,
+    .tabla-cards td {
+        display: block;
+        width: 100%;
+    }
+    .tabla-cards thead {
+        display: none;
+    }
+    .tabla-cards tr {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        padding: 0.4rem 0.6rem;
+        background: #fff;
+    }
+    .tabla-cards td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        padding: 0.25rem 0;
+        text-align: right;
+    }
+    .tabla-cards td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        color: #6c757d;
+    }
+    .tabla-cards td[data-label=""] {
+        justify-content: flex-end;
+    }
+}

@@ -87,6 +87,15 @@ def api_resumen():
     return jsonify(store().get_resumen(meses))
 
 
+@bp.route('/api/comparativa')
+def api_comparativa():
+    try:
+        meses = int(request.args.get('meses', 12))
+    except ValueError:
+        meses = 12
+    return jsonify(store().get_resumen_comparativo(meses))
+
+
 @bp.route('/api/categorias')
 def api_categorias():
     return jsonify(store().list_categorias())

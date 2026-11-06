@@ -5,56 +5,23 @@
 {% block header_subtitle %}Gastos e ingresos, con balance mensual{% endblock %}
 
 {% block content %}
-<div class="row g-4">
-    <!-- Alta / edición de movimientos -->
-    <div class="col-md-5">
-        <div class="card">
-            <div class="card-body">
-                <h2 id="form-titulo"><i class="fas fa-plus-circle"></i> Nuevo movimiento</h2>
-                <form id="movimiento-form" onsubmit="return guardarMovimiento(event)">
-                    <input type="hidden" id="mov-id">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="mov-fecha">Fecha</label>
-                            <input type="date" id="mov-fecha" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="mov-importe">Importe (&euro;)</label>
-                            <input type="number" id="mov-importe" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="mov-tipo">Tipo</label>
-                        <select id="mov-tipo" class="form-control">
-                            <option value="gasto">Gasto</option>
-                            <option value="ingreso">Ingreso</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="mov-categoria">Categoría</label>
-                        <input type="text" id="mov-categoria" class="form-control" list="categorias" placeholder="p. ej. compra, luz, nómina...">
-                        <datalist id="categorias"></datalist>
-                    </div>
-                    <div class="form-group">
-                        <label for="mov-descripcion">Descripción</label>
-                        <input type="text" id="mov-descripcion" class="form-control" placeholder="opcional">
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Guardar
-                    </button>
-                    <button type="button" id="btn-cancelar-edicion" class="btn btn-secondary" style="display:none" onclick="cancelarEdicion()">
-                        Cancelar edición
-                    </button>
-                </form>
-            </div>
-        </div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="btn-group" role="group" aria-label="Periodo" id="selector-periodo">
+        <button type="button" class="btn btn-outline-primary" data-meses="1">1 mes</button>
+        <button type="button" class="btn btn-outline-primary" data-meses="3">3 meses</button>
+        <button type="button" class="btn btn-outline-primary active" data-meses="12">1 año</button>
     </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#movimiento-modal" onclick="nuevoMovimiento()">
+        <i class="fas fa-plus-circle"></i> Nuevo movimiento
+    </button>
+</div>
 
-    <!-- Gráfica mensual -->
+<div class="row g-4">
+    <!-- Gráfica del periodo -->
     <div class="col-md-7">
         <div class="card">
             <div class="card-body">
-                <h2><i class="fas fa-chart-column"></i> Últimos 12 meses</h2>
+                <h2 id="grafico-titulo"><i class="fas fa-chart-column"></i> Último año</h2>
                 <canvas id="grafico" height="260"></canvas>
             </div>
         </div>
@@ -65,14 +32,14 @@
         <div class="card">
             <div class="card-body">
                 <h2><i class="fas fa-history"></i> Histórico mensual</h2>
-                <table class="table table-sm table-striped" id="historico">
+                <table class="table table-sm table-striped tabla-cards" id="historico">
                     <thead>
                         <tr>
                             <th>Mes</th>
-                            <th class="text-right">Ingresos</th>
-                            <th class="text-right">Gastos</th>
-                            <th class="text-right">Balance</th>
-                            <th class="text-right">Acumulado</th>
+                            <th class="text-end">Ingresos</th>
+                            <th class="text-end">Gastos</th>
+                            <th class="text-end">Balance</th>
+                            <th class="text-end">Acumulado</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -82,26 +49,74 @@
     </div>
 
     <!-- Últimos movimientos -->
-    <div class="col-md-7">
+    <div class="col-12">
         <div class="card">
             <div class="card-body">
                 <h2><i class="fas fa-receipt"></i> Últimos movimientos</h2>
-                <table class="table table-sm" id="movimientos">
+                <table class="table table-sm tabla-cards" id="movimientos">
                     <thead>
                         <tr>
                             <th>Fecha</th>
                             <th>Categoría</th>
                             <th>Descripción</th>
-                            <th class="text-right">Importe</th>
+                            <th class="text-end">Importe</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
                 <p id="sin-movimientos" class="text-muted" style="display:none">
-                    Aún no hay movimientos. Añade el primero con el formulario.
+                    Aún no hay movimientos. Añade el primero con el botón «Nuevo movimiento».
                 </p>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de alta / edición -->
+<div class="modal fade" id="movimiento-modal" tabindex="-1" aria-labelledby="movimiento-modal-titulo" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="movimiento-modal-titulo"><i class="fas fa-plus-circle"></i> Nuevo movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="movimiento-form" onsubmit="return guardarMovimiento(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="mov-id">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label for="mov-fecha" class="form-label">Fecha</label>
+                            <input type="date" id="mov-fecha" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="mov-importe" class="form-label">Importe (&euro;)</label>
+                            <input type="number" id="mov-importe" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="col-6">
+                            <label for="mov-tipo" class="form-label">Tipo</label>
+                            <select id="mov-tipo" class="form-select">
+                                <option value="gasto">Gasto</option>
+                                <option value="ingreso">Ingreso</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="mov-categoria" class="form-label">Categoría</label>
+                            <input type="text" id="mov-categoria" class="form-control" list="categorias" placeholder="p. ej. compra, luz...">
+                            <datalist id="categorias"></datalist>
+                        </div>
+                        <div class="col-12">
+                            <label for="mov-descripcion" class="form-label">Descripción</label>
+                            <input type="text" id="mov-descripcion" class="form-control" placeholder="opcional">
+                        </div>
+                    </div>
+                    <div id="mov-error" class="text-danger mt-3" style="display:none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -111,8 +126,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     let chart = null;
+    let meses = 12;
 
     const fmtEUR = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+    const NOMBRES_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
+                         'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -120,70 +138,68 @@
 
     function nombreMes(mes) {
         const [a, m] = mes.split('-');
-        const nombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
-                         'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        return nombres[parseInt(m, 10) - 1] + ' ' + a;
+        return NOMBRES_MES[parseInt(m, 10) - 1] + ' ' + a;
+    }
+
+    function etiquetaMes(mes) {
+        const abrev = NOMBRES_MES[parseInt(mes.slice(5, 7), 10) - 1].slice(0, 3);
+        return meses === 12 ? abrev + ' ' + mes.slice(2, 4) : abrev + ' ' + mes.slice(0, 4);
     }
 
     // --- Carga de datos y refresco completo ---
 
     function cargarTodo() {
-        $.get('/gastos/api/resumen?meses=12', function(resumen) {
-            pintarGrafico(resumen);
-            pintarHistorico(resumen);
+        $.get('/gastos/api/comparativa?meses=' + meses, function (datos) {
+            pintarGrafico(datos);
+            pintarHistorico(datos.actual);
         });
         $.get('/gastos/api/movimientos?limit=50', pintarMovimientos);
-        $.get('/gastos/api/categorias', function(cats) {
+        $.get('/gastos/api/categorias', function (cats) {
             const todos = (cats.gasto || []).concat(cats.ingreso || []);
             $('#categorias').html(todos.map(c => '<option value="' + escapeHtml(c) + '">').join(''));
         });
     }
 
-    function pintarGrafico(resumen) {
-        const labels = resumen.map(r => nombreMes(r.mes).split(' ')[0].slice(0, 3) + ' ' + r.mes.slice(2, 4));
+    function pintarGrafico(datos) {
+        const resumen = datos.actual;
+        const titulos = { 1: 'Este mes vs. mismo mes del año pasado', 3: 'Últimos 3 meses' };
+        $('#grafico-titulo').html('<i class="fas fa-chart-column"></i> ' + (titulos[meses] || 'Último año'));
+
+        const datasets = [
+            { type: 'bar', label: 'Ingresos', data: resumen.map(r => r.ingresos), backgroundColor: '#59a14f' },
+            { type: 'bar', label: 'Gastos', data: resumen.map(r => r.gastos), backgroundColor: '#e15759' }
+        ];
+        if (meses < 12) {
+            datasets.push(
+                { type: 'bar', label: 'Ingresos año anterior', data: datos.anterior.map(r => r.ingresos), backgroundColor: '#59a14f66' },
+                { type: 'bar', label: 'Gastos año anterior', data: datos.anterior.map(r => r.gastos), backgroundColor: '#e1575966' }
+            );
+        }
+        datasets.push({
+            type: 'line',
+            label: 'Balance acumulado',
+            data: resumen.map(r => r.acumulado),
+            borderColor: '#4e79a7',
+            backgroundColor: '#4e79a7',
+            tension: 0.25,
+            pointRadius: 3
+        });
+
         if (chart) chart.destroy();
         chart = new Chart(document.getElementById('grafico'), {
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        type: 'bar',
-                        label: 'Ingresos',
-                        data: resumen.map(r => r.ingresos),
-                        backgroundColor: '#59a14f'
-                    },
-                    {
-                        type: 'bar',
-                        label: 'Gastos',
-                        data: resumen.map(r => r.gastos),
-                        backgroundColor: '#e15759'
-                    },
-                    {
-                        type: 'line',
-                        label: 'Balance acumulado',
-                        data: resumen.map(r => r.acumulado),
-                        borderColor: '#4e79a7',
-                        backgroundColor: '#4e79a7',
-                        tension: 0.25,
-                        pointRadius: 3
-                    }
-                ]
-            },
+            data: { labels: resumen.map(r => etiquetaMes(r.mes)), datasets: datasets },
             options: {
                 responsive: true,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     tooltip: {
                         callbacks: {
+                            title: items => nombreMes(resumen[items[0].dataIndex].mes),
                             label: ctx => ctx.dataset.label + ': ' + fmtEUR.format(ctx.parsed.y)
                         }
                     }
                 },
-                scales: {
-                    y: {
-                        ticks: { callback: v => fmtEUR.format(v) }
-                    }
-                }
+                scales: { y: { ticks: { callback: v => fmtEUR.format(v) } } }
             }
         });
     }
@@ -191,11 +207,11 @@
     function pintarHistorico(resumen) {
         const filas = resumen.slice().reverse().map(r =>
             '<tr>' +
-            '<td>' + nombreMes(r.mes) + '</td>' +
-            '<td class="text-right">' + fmtEUR.format(r.ingresos) + '</td>' +
-            '<td class="text-right">' + fmtEUR.format(r.gastos) + '</td>' +
-            '<td class="text-right">' + fmtEUR.format(r.balance) + '</td>' +
-            '<td class="text-right"><strong>' + fmtEUR.format(r.acumulado) + '</strong></td>' +
+            '<td data-label="Mes">' + nombreMes(r.mes) + '</td>' +
+            '<td data-label="Ingresos">' + fmtEUR.format(r.ingresos) + '</td>' +
+            '<td data-label="Gastos">' + fmtEUR.format(r.gastos) + '</td>' +
+            '<td data-label="Balance">' + fmtEUR.format(r.balance) + '</td>' +
+            '<td data-label="Acumulado"><strong>' + fmtEUR.format(r.acumulado) + '</strong></td>' +
             '</tr>'
         );
         $('#historico tbody').html(filas.join(''));
@@ -208,11 +224,11 @@
             const color = m.tipo === 'gasto' ? '#e15759' : '#59a14f';
             const icono = m.tipo === 'gasto' ? 'fa-arrow-down' : 'fa-arrow-up';
             return '<tr>' +
-                '<td>' + m.fecha.split('-').reverse().join('/') + '</td>' +
-                '<td><i class="fas ' + icono + '" style="color:' + color + '"></i> ' + escapeHtml(m.categoria || m.tipo) + '</td>' +
-                '<td>' + escapeHtml(m.descripcion) + '</td>' +
-                '<td class="text-right" style="color:' + color + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
-                '<td class="text-right">' +
+                '<td data-label="Fecha">' + m.fecha.split('-').reverse().join('/') + '</td>' +
+                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '"></i> ' + escapeHtml(m.categoria || m.tipo) + '</td>' +
+                '<td data-label="Descripción">' + escapeHtml(m.descripcion) + '</td>' +
+                '<td data-label="Importe" style="color:' + color + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
+                '<td data-label="" class="text-end">' +
                     '<button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="editarMovimiento(' + m.id + ')"><i class="fas fa-pen"></i></button> ' +
                     '<button class="btn btn-sm btn-outline-danger" title="Borrar" onclick="borrarMovimiento(' + m.id + ')"><i class="fas fa-trash"></i></button>' +
                 '</td>' +
@@ -222,6 +238,18 @@
     }
 
     // --- Acciones ---
+
+    function abrirModal() {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('movimiento-modal')).show();
+    }
+
+    function cerrarModal() {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('movimiento-modal')).hide();
+    }
+
+    function nuevoMovimiento() {
+        limpiarFormulario();
+    }
 
     function guardarMovimiento(ev) {
         ev.preventDefault();
@@ -237,41 +265,38 @@
             ? $.ajax({ url: '/gastos/api/movimiento/' + id, method: 'PUT', contentType: 'application/json', data: JSON.stringify(datos) })
             : $.ajax({ url: '/gastos/api/movimientos', method: 'POST', contentType: 'application/json', data: JSON.stringify(datos) });
 
-        peticion.done(function() {
+        peticion.done(function () {
+            cerrarModal();
             limpiarFormulario();
             cargarTodo();
-        }).fail(function(xhr) {
-            alert((xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar el movimiento');
+        }).fail(function (xhr) {
+            $('#mov-error').text((xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar el movimiento').show();
         });
         return false;
     }
 
     function editarMovimiento(id) {
-        $.get('/gastos/api/movimientos?limit=500').done(function(movs) {
+        $.get('/gastos/api/movimientos?limit=500').done(function (movs) {
             const m = movs.find(x => x.id === id);
             if (!m) return;
+            limpiarFormulario();
             $('#mov-id').val(m.id);
             $('#mov-fecha').val(m.fecha);
             $('#mov-tipo').val(m.tipo);
             $('#mov-importe').val(m.importe);
             $('#mov-categoria').val(m.categoria);
             $('#mov-descripcion').val(m.descripcion);
-            $('#form-titulo').html('<i class="fas fa-pen"></i> Editar movimiento');
-            $('#btn-cancelar-edicion').show();
-            $('html, body').animate({ scrollTop: 0 }, 200);
+            $('#movimiento-modal-titulo').html('<i class="fas fa-pen"></i> Editar movimiento');
+            abrirModal();
         });
-    }
-
-    function cancelarEdicion() {
-        limpiarFormulario();
     }
 
     function limpiarFormulario() {
         $('#mov-id').val('');
+        $('#mov-error').hide();
         $('#movimiento-form')[0].reset();
         $('#mov-fecha').val(new Date().toISOString().slice(0, 10));
-        $('#form-titulo').html('<i class="fas fa-plus-circle"></i> Nuevo movimiento');
-        $('#btn-cancelar-edicion').hide();
+        $('#movimiento-modal-titulo').html('<i class="fas fa-plus-circle"></i> Nuevo movimiento');
     }
 
     function borrarMovimiento(id) {
@@ -279,8 +304,14 @@
         $.ajax({ url: '/gastos/api/movimiento/' + id, method: 'DELETE' }).done(cargarTodo);
     }
 
-    $(function() {
+    $(function () {
         $('#mov-fecha').val(new Date().toISOString().slice(0, 10));
+        $('#selector-periodo button').on('click', function () {
+            $('#selector-periodo button').removeClass('active');
+            $(this).addClass('active');
+            meses = parseInt($(this).data('meses'), 10);
+            cargarTodo();
+        });
         cargarTodo();
     });
 </script>

@@ -58,6 +58,10 @@ class GastosStore(Store):
         [{mes, ingresos, gastos, balance, acumulado}] (acumulado incluye meses anteriores)."""
         raise NotImplementedError
 
+    def get_resumen_comparativo(self, meses=12):
+        """{'actual': [...], 'anterior': [...]}: la ventana pedida y la misma un año antes."""
+        raise NotImplementedError
+
     def list_categorias(self):
         """{'gasto': [...], 'ingreso': [...]} usadas hasta ahora."""
         raise NotImplementedError

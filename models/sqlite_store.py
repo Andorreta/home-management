@@ -138,10 +138,10 @@ class SqliteStore(GastosStore):
             rows = conn.execute(sql, params).fetchall()
         return [_row_to_dict(r) for r in rows]
 
-    def get_resumen(self, meses=12):
-        """Últimos `meses` meses calendario con totales y balance acumulado."""
+    def get_resumen(self, meses=12, fecha_ref=None):
+        """Últimos `meses` meses calendario (con fecha_ref se ancla a otro mes)."""
         meses = max(1, min(int(meses), 60))
-        hoy = date.today()
+        hoy = fecha_ref or date.today()
         # Primer mes de la ventana (YYYY-MM)
         anio, mes = hoy.year, hoy.month - (meses - 1)
         while mes <= 0:
@@ -187,6 +187,17 @@ class SqliteStore(GastosStore):
                 mes = 1
                 anio += 1
         return resultado
+
+    def get_resumen_comparativo(self, meses=12):
+        """Ventana actual y la misma ventana un año antes, para comparar."""
+        hoy = date.today()
+        actual = self.get_resumen(meses)
+        try:
+            ref_anterior = hoy.replace(year=hoy.year - 1)
+        except ValueError:  # 29 de febrero
+            ref_anterior = hoy.replace(year=hoy.year - 1, day=28)
+        anterior = self.get_resumen(meses, fecha_ref=ref_anterior)
+        return {'actual': actual, 'anterior': anterior}
 
     def list_categorias(self):
         with self._conn() as conn:
