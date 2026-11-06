@@ -84,6 +84,13 @@
             <form id="movimiento-form" onsubmit="return guardarMovimiento(event)">
                 <div class="modal-body">
                     <input type="hidden" id="mov-id">
+                    <input type="hidden" id="mov-ticket-path">
+                    <div class="pb-3 mb-3 border-bottom">
+                        <label for="mov-foto" class="form-label"><i class="fas fa-camera"></i> Foto del ticket (opcional)</label>
+                        <input type="file" id="mov-foto" accept="image/*" capture="environment" class="form-control" onchange="analizarTicket(this)">
+                        <div id="ticket-estado" class="small mt-2" style="display:none"></div>
+                        <ul id="ticket-articulos" class="small text-muted mt-2 mb-0"></ul>
+                    </div>
                     <div class="row g-3">
                         <div class="col-6">
                             <label for="mov-fecha" class="form-label">Fecha</label>
@@ -225,7 +232,8 @@
             const icono = m.tipo === 'gasto' ? 'fa-arrow-down' : 'fa-arrow-up';
             return '<tr>' +
                 '<td data-label="Fecha">' + m.fecha.split('-').reverse().join('/') + '</td>' +
-                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '"></i> ' + escapeHtml(m.categoria || m.tipo) + '</td>' +
+                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '"></i> ' + escapeHtml(m.categoria || m.tipo) +
+                    (m.ticket_path ? ' <a href="/gastos/ticket/' + m.id + '" target="_blank" title="Ver foto del ticket"><i class="fas fa-paperclip"></i></a>' : '') + '</td>' +
                 '<td data-label="Descripción">' + escapeHtml(m.descripcion) + '</td>' +
                 '<td data-label="Importe" style="color:' + color + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
                 '<td data-label="" class="text-end">' +
@@ -251,6 +259,68 @@
         limpiarFormulario();
     }
 
+    // --- Foto del ticket: comprimir, subir y analizar con Strata ---
+
+    function comprimirImagen(file) {
+        return new Promise(function (resuelve, rechaza) {
+            const img = new Image();
+            img.onload = function () {
+                const max = 1280;
+                let w = img.width, h = img.height;
+                if (Math.max(w, h) > max) {
+                    const r = max / Math.max(w, h);
+                    w = Math.round(w * r); h = Math.round(h * r);
+                }
+                const lienzo = document.createElement('canvas');
+                lienzo.width = w; lienzo.height = h;
+                lienzo.getContext('2d').drawImage(img, 0, 0, w, h);
+                lienzo.toBlob(function (b) { b ? resuelve(b) : rechaza(new Error('No se pudo comprimir')); }, 'image/jpeg', 0.85);
+                URL.revokeObjectURL(img.src);
+            };
+            img.onerror = function () { rechaza(new Error('No se pudo leer la imagen')); };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    function analizarTicket(input) {
+        const archivo = input.files && input.files[0];
+        if (!archivo) return;
+        $('#ticket-estado').show().html(
+            '<span class="text-info"><i class="fas fa-spinner fa-spin"></i> Analizando el ticket con la IA ' +
+            '(puede tardar un minuto)...</span>');
+        $('#ticket-articulos').empty();
+
+        comprimirImagen(archivo).then(function (blob) {
+            const form = new FormData();
+            form.append('foto', blob, 'ticket.jpg');
+            return $.ajax({
+                url: '/gastos/api/tickets', method: 'POST',
+                data: form, processData: false, contentType: false, timeout: 300000
+            });
+        }).done(function (datos) {
+            if (datos.ticket_path) $('#mov-ticket-path').val(datos.ticket_path);
+            if (datos.error) {
+                $('#ticket-estado').html('<span class="text-danger">No se pudo analizar: ' + escapeHtml(datos.error) +
+                    '</span><br><span class="text-muted">La foto queda guardada: puedes rellenar el formulario a mano.</span>');
+                return;
+            }
+            const s = datos.sugerencia;
+            if (s.fecha) $('#mov-fecha').val(s.fecha);
+            if (s.total != null) $('#mov-importe').val(s.total);
+            if (s.categoria) $('#mov-categoria').val(s.categoria);
+            if (s.tienda) $('#mov-descripcion').val(s.tienda);
+            $('#mov-tipo').val('ingreso' === s.categoria ? 'ingreso' : 'gasto');
+            $('#ticket-articulos').html((s.articulos || []).map(a =>
+                '<li>' + escapeHtml(a.descripcion) + ' — ' + fmtEUR.format(a.importe) + '</li>'));
+            $('#ticket-estado').show().html('<span class="text-success"><i class="fas fa-check"></i> ' +
+                'Ticket leído. Revisa los datos y guarda.</span>');
+        }).fail(function (xhr) {
+            const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Error subiendo la foto';
+            if (xhr.responseJSON && xhr.responseJSON.ticket_path) $('#mov-ticket-path').val(xhr.responseJSON.ticket_path);
+            $('#ticket-estado').html('<span class="text-danger">' + escapeHtml(msg) + '</span>');
+        });
+    }
+
     function guardarMovimiento(ev) {
         ev.preventDefault();
         const datos = {
@@ -258,7 +328,8 @@
             tipo: $('#mov-tipo').val(),
             importe: $('#mov-importe').val(),
             categoria: $('#mov-categoria').val(),
-            descripcion: $('#mov-descripcion').val()
+            descripcion: $('#mov-descripcion').val(),
+            ticket_path: $('#mov-ticket-path').val() || null
         };
         const id = $('#mov-id').val();
         const peticion = id
@@ -293,6 +364,10 @@
 
     function limpiarFormulario() {
         $('#mov-id').val('');
+        $('#mov-ticket-path').val('');
+        $('#mov-foto').val('');
+        $('#ticket-estado').hide().empty();
+        $('#ticket-articulos').empty();
         $('#mov-error').hide();
         $('#movimiento-form')[0].reset();
         $('#mov-fecha').val(new Date().toISOString().slice(0, 10));

@@ -87,14 +87,14 @@ class SqliteStore(GastosStore):
 
     # --- Altas, modificaciones y bajas ---
 
-    def add_movimiento(self, fecha, tipo, importe, categoria, descripcion):
+    def add_movimiento(self, fecha, tipo, importe, categoria, descripcion, ticket_path=None):
         fecha, tipo, importe, categoria, descripcion = self._validate(
             fecha, tipo, importe, categoria, descripcion)
         with self._conn() as conn:
             cur = conn.execute(
-                'INSERT INTO movimientos (fecha, tipo, importe, categoria, descripcion) '
-                'VALUES (?, ?, ?, ?, ?)',
-                (fecha, tipo, importe, categoria, descripcion),
+                'INSERT INTO movimientos (fecha, tipo, importe, categoria, descripcion, ticket_path) '
+                'VALUES (?, ?, ?, ?, ?, ?)',
+                (fecha, tipo, importe, categoria, descripcion, ticket_path),
             )
             row = conn.execute('SELECT * FROM movimientos WHERE id = ?', (cur.lastrowid,)).fetchone()
         return _row_to_dict(row)
@@ -119,6 +119,11 @@ class SqliteStore(GastosStore):
         return cur.rowcount > 0
 
     # --- Consultas ---
+
+    def get_movimiento(self, mov_id):
+        with self._conn() as conn:
+            row = conn.execute('SELECT * FROM movimientos WHERE id = ?', (mov_id,)).fetchone()
+        return _row_to_dict(row) if row else None
 
     def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None):
         sql = 'SELECT * FROM movimientos WHERE 1=1'

@@ -37,7 +37,7 @@ class MenusStore(Store):
 class GastosStore(Store):
     """Almacén de movimientos (gastos e ingresos) de la casa."""
 
-    def add_movimiento(self, fecha, tipo, importe, categoria, descripcion):
+    def add_movimiento(self, fecha, tipo, importe, categoria, descripcion, ticket_path=None):
         """Valida e inserta. Devuelve el movimiento creado (dict). Lanza ValueError si es inválido."""
         raise NotImplementedError
 
@@ -47,6 +47,10 @@ class GastosStore(Store):
 
     def delete_movimiento(self, mov_id):
         """True si existía y se borró."""
+        raise NotImplementedError
+
+    def get_movimiento(self, mov_id):
+        """El movimiento por id, o None."""
         raise NotImplementedError
 
     def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None):
