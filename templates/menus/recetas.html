@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Recetas{% endblock %}
+{% block title %}Recetas · Home Management{% endblock %}
+
+{% block header_icon %}fa-book-open{% endblock %}
 
 {% block header_title %}Recetas{% endblock %}
 
@@ -10,20 +12,23 @@
 <div class="row">
     <div class="col-md-12">
         <div class="menu-card">
-            <h2><i class="fas fa-book-open"></i> Recetas</h2>
+            <h2><i class="fas fa-book-open"></i> Recetas guardadas</h2>
 
-            <div class="mb-4 d-flex gap-2 flex-wrap">
-                <button class="btn btn-primary btn-lg" id="recetaBtn" type="button" onclick="toggleRecipeList()">
-                    <i class="fas fa-list"></i> <span id="recetaBtnLabel">Cargando...</span>
+            <div class="mb-4 d-flex gap-2 flex-wrap align-items-center">
+                <button class="btn btn-primary btn-lg" id="recetaBtn" type="button"
+                        onclick="toggleRecipeList()" aria-expanded="false" aria-controls="recipe-list-card">
+                    <i class="fas fa-list"></i> Ver recetas
                 </button>
                 <button class="btn btn-success btn-lg" type="button" onclick="abrirModalReceta(null)">
                     <i class="fas fa-plus-circle"></i> Nueva receta
                 </button>
+                <span id="recetaStatus" class="text-muted small" role="status" aria-live="polite">Cargando…</span>
             </div>
 
             <div id="recipe-list-card" class="calendar-card" style="display: none;">
                 <div class="section-title"><i class="fas fa-search"></i> Todas las recetas</div>
-                <input type="text" id="recipe-search" class="form-control mb-2" placeholder="Filtrar por nombre..." oninput="renderRecipeList()">
+                <label class="form-label" for="recipe-search">Filtrar por nombre</label>
+                <input type="text" id="recipe-search" class="form-control mb-2" placeholder="Ej.: arroz, pollo…" oninput="renderRecipeList()">
                 <div id="recipe-list" class="recipe-list"></div>
             </div>
 
@@ -37,23 +42,24 @@
 </div>
 
 <!-- Modal de alta / edición -->
-<div class="modal fade" id="receta-modal" tabindex="-1">
+<div class="modal fade" id="receta-modal" tabindex="-1"
+     aria-labelledby="receta-modal-titulo" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="receta-modal-titulo"><i class="fas fa-plus-circle"></i> Nueva receta</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="receta-form" onsubmit="return guardarReceta(event)">
                 <div class="modal-body">
                     <input type="hidden" id="rc-id-original">
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label class="form-label">Nombre *</label>
+                            <label class="form-label" for="rc-nombre">Nombre *</label>
                             <input type="text" id="rc-nombre" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Id <span class="text-muted small">(opcional, se genera del nombre)</span></label>
+                            <label class="form-label" for="rc-id">Id <span class="text-muted small">(opcional, se genera del nombre)</span></label>
                             <input type="text" id="rc-id" class="form-control" placeholder="pollo_al_curry">
                         </div>
                         <div class="col-12">
@@ -64,15 +70,15 @@
                             </button>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label"><i class="fas fa-blender"></i> Utensilios <span class="text-muted small">(uno por línea)</span></label>
+                            <label class="form-label" for="rc-utensilios"><i class="fas fa-blender"></i> Utensilios <span class="text-muted small">(uno por línea)</span></label>
                             <textarea id="rc-utensilios" class="form-control" rows="4" placeholder="Cazuela&#10;Sartén"></textarea>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label"><i class="fas fa-clipboard-list"></i> Pasos <span class="text-muted small">(uno por línea)</span></label>
+                            <label class="form-label" for="rc-pasos"><i class="fas fa-clipboard-list"></i> Pasos <span class="text-muted small">(uno por línea)</span></label>
                             <textarea id="rc-pasos" class="form-control" rows="6" placeholder="Pica la cebolla..."></textarea>
                         </div>
                     </div>
-                    <div id="rc-error" class="alert alert-danger mt-3" style="display:none"></div>
+                    <div id="rc-error" class="alert alert-danger mt-3" style="display:none" role="alert"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -107,7 +113,7 @@
             .done(function(data) {
                 allRecipes = data;
                 if (allRecipes.length) {
-                    $('#recetaBtnLabel').text(allRecipes.length + ' recetas disponibles');
+                    $('#recetaStatus').text(allRecipes.length + ' recetas disponibles');
                     renderRecipeList();
                     if (selId && allRecipes.some(r => r.id === selId)) {
                         selectRecipe(selId);
@@ -116,25 +122,29 @@
                     } else {
                         currentRecipeId = null;
                         $('#recipe-list-card').show();
+                        $('#recetaBtn').attr('aria-expanded', 'true');
                         selectRecipe(allRecipes[0].id);
                     }
                 } else {
-                    $('#recetaBtnLabel').text('No hay recetas');
+                    $('#recetaStatus').text('No hay recetas guardadas');
                     $('#recipe-container').html('<div class="alert alert-info"><i class="fas fa-info-circle"></i> No hay recetas guardadas en el sistema.</div>');
                 }
             })
             .fail(function() {
-                $('#recetaBtnLabel').text('Error');
+                $('#recetaStatus').text('No se pudieron cargar las recetas');
                 $('#recipe-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las recetas.</div>');
             });
     }
 
     function toggleRecipeList() {
         const card = $('#recipe-list-card');
+        const btn = $('#recetaBtn');
         if (card.is(':visible')) {
             card.hide();
+            btn.attr('aria-expanded', 'false');
         } else {
             card.show();
+            btn.attr('aria-expanded', 'true');
             renderRecipeList();
             $('#recipe-search').focus();
         }
@@ -146,8 +156,8 @@
         allRecipes.forEach(function(r) {
             if (filtro && r.nombre.toLowerCase().indexOf(filtro) === -1) return;
             const active = r.id === currentRecipeId ? ' active' : '';
-            html += '<div class="recipe-list-item' + active + '" onclick="selectRecipe(\'' + r.id + '\')">' +
-                    '<i class="fas fa-utensil-spoon"></i>' + escapeHtml(r.nombre) + '</div>';
+            html += '<button type="button" class="recipe-list-item' + active + '" onclick="selectRecipe(\'' + r.id + '\')">' +
+                    '<i class="fas fa-utensil-spoon" aria-hidden="true"></i> ' + escapeHtml(r.nombre) + '</button>';
         });
         $('#recipe-list').html(html || '<p class="text-muted small">Ninguna receta coincide con el filtro</p>');
     }
@@ -156,10 +166,10 @@
         currentRecipeId = id;
         renderRecipeList();
         $('#recipe-list-card').hide();
+        $('#recetaBtn').attr('aria-expanded', 'false');
 
         $.get('/menus/api/receta/' + id)
             .done(function(receta) {
-                $('#recetaBtnLabel').text(receta.nombre || id);
                 displayRecipe(receta);
             })
             .fail(function() {
@@ -174,9 +184,8 @@
         }
         if (data && typeof data === 'object') {
             const parts = [];
-            if (data.val) {
-                const cleanVal = Math.round(data.val * 100) / 100;
-                parts.push(cleanVal + (data.unit ? ' ' + data.unit : ''));
+            if (data.val != null) {
+                parts.push(formatearNumero(data.val) + (data.unit ? ' ' + data.unit : ''));
             } else if (data.unit) {
                 parts.push(data.unit);
             }
@@ -200,7 +209,7 @@
             }
             const qty = formatIngredientValue(data);
             const cleanQty = (opcional && qty.toLowerCase() === 'opcional') ? '' : qty;
-            const qtyStr = cleanQty ? `: ${cleanQty}` : '';
+            const qtyStr = cleanQty ? ': ' + escapeHtml(cleanQty) : '';
             const optStr = opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '';
             const optionalClass = opcional ? ' optional-ingredient' : '';
             html += '<li class="' + optionalClass + '"><strong>' + escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr + '</li>';
@@ -268,11 +277,11 @@
 
     function agregarIngrediente(nombre, cantidad, opcional) {
         const fila = $('<div class="row g-2 mb-2 ing-row">' +
-            '<div class="col-md-5"><input type="text" class="form-control ing-nombre" placeholder="aceite de oliva"></div>' +
-            '<div class="col-md-5"><input type="text" class="form-control ing-cantidad" placeholder="2 cucharadas / 50 ml / al gusto"></div>' +
+            '<div class="col-md-5"><input type="text" class="form-control ing-nombre" aria-label="Nombre del ingrediente" placeholder="aceite de oliva"></div>' +
+            '<div class="col-md-5"><input type="text" class="form-control ing-cantidad" aria-label="Cantidad del ingrediente" placeholder="2 cucharadas / 50 ml / al gusto"></div>' +
             '<div class="col-md-2 d-flex align-items-center gap-2">' +
             '<label class="small mb-0">opc.<input type="checkbox" class="form-check-input ing-opcional ms-1"></label>' +
-            '<button type="button" class="btn btn-outline-secondary btn-sm" title="Quitar" onclick="$(this).closest(\'.ing-row\').remove()"><i class="fas fa-times"></i></button>' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm" title="Quitar" aria-label="Quitar ingrediente" onclick="$(this).closest(\'.ing-row\').remove()"><i class="fas fa-times" aria-hidden="true"></i></button>' +
             '</div></div>');
         fila.find('.ing-nombre').val(nombre);
         fila.find('.ing-cantidad').val(cantidad);
@@ -360,7 +369,7 @@
             if (idNuevo) cuerpo.id = idNuevo;
         }
 
-        $('#rc-guardar').prop('disabled', true);
+        $('#rc-guardar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
         $.ajax({ url: url, method: metodo, contentType: 'application/json', data: JSON.stringify(cuerpo) })
             .done(function(datos) {
                 recetaModal.hide();
@@ -371,7 +380,7 @@
                 $('#rc-error').text(msg).show();
             })
             .always(function() {
-                $('#rc-guardar').prop('disabled', false);
+                $('#rc-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar receta');
             });
         return false;
     }
@@ -379,28 +388,37 @@
     function borrarReceta(id) {
         const receta = allRecipes.find(r => r.id === id);
         const nombre = receta ? receta.nombre : id;
-        if (!confirm('¿Eliminar la receta "' + nombre + '"?')) return;
-
-        $.ajax({ url: '/menus/api/receta/' + id, method: 'DELETE' })
-            .done(function() {
-                currentRecipeId = null;
-                cargarRecetas();
-            })
-            .fail(function(xhr) {
-                const datos = xhr.responseJSON || {};
-                if (xhr.status === 409 && datos.menus) {
-                    if (confirm('Esta receta aparece en ' + datos.menus.length + ' menú(s): ' + datos.menus.join(', ') +
-                                '.\n\n¿Eliminarla de todos modos? Los menús perderán esa receta en la lista de la compra.')) {
-                        $.ajax({ url: '/menus/api/receta/' + id + '?force=1', method: 'DELETE' })
-                            .done(function() {
-                                currentRecipeId = null;
-                                cargarRecetas();
-                            });
+        pedirConfirmacion('¿Eliminar la receta "' + nombre + '"?', function() {
+            $.ajax({ url: '/menus/api/receta/' + id, method: 'DELETE' })
+                .done(function() {
+                    currentRecipeId = null;
+                    cargarRecetas();
+                    mostrarToast('Receta eliminada.', 'success');
+                })
+                .fail(function(xhr) {
+                    const datos = xhr.responseJSON || {};
+                    if (xhr.status === 409 && datos.menus) {
+                        pedirConfirmacion(
+                            'Esta receta aparece en ' + datos.menus.length + ' menú(s): ' + datos.menus.join(', ') +
+                            '.\n\n¿Eliminarla de todos modos? Los menús perderán esa receta en la lista de la compra.',
+                            function() {
+                                $.ajax({ url: '/menus/api/receta/' + id + '?force=1', method: 'DELETE' })
+                                    .done(function() {
+                                        currentRecipeId = null;
+                                        cargarRecetas();
+                                        mostrarToast('Receta eliminada de todos los menús.', 'success');
+                                    })
+                                    .fail(function(err) {
+                                        mostrarToast(((err.responseJSON || {}).error) || 'Error al eliminar la receta');
+                                    });
+                            },
+                            { textoBoton: 'Eliminar de todos modos' }
+                        );
+                    } else {
+                        mostrarToast(datos.error || 'Error al eliminar la receta');
                     }
-                } else {
-                    alert(datos.error || 'Error al eliminar la receta');
-                }
-            });
+                });
+        }, { textoBoton: 'Eliminar' });
     }
 </script>
 {% endblock %}

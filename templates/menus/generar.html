@@ -1,25 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Generar menú{% endblock %}
+{% block title %}Generar menú · Home Management{% endblock %}
+
+{% block header_icon %}fa-magic{% endblock %}
 
 {% block header_title %}Generar menú{% endblock %}
 
 {% block header_subtitle %}El menú semanal lo propone la IA, respetando tus preferencias y sin repetir recetas recientes{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/vendor/flatpickr.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr.min.css') }}">
 <div class="row">
     <div class="col-md-12">
         <div class="menu-card">
-            <h2><i class="fas fa-magic"></i> Generar menú</h2>
+            <h2><i class="fas fa-magic"></i> Configura el menú</h2>
 
             <div class="row g-3 align-items-end mb-3">
                 <div class="col-md-4">
-                    <label class="form-label"><i class="fas fa-calendar-plus"></i> Fecha de inicio</label>
-                    <input type="text" id="fecha-inicio" class="form-control" readonly>
+                    <label class="form-label" for="fecha-inicio"><i class="fas fa-calendar-plus"></i> Fecha de inicio</label>
+                    <input type="text" id="fecha-inicio" class="form-control" readonly
+                           aria-describedby="fechas-ayuda">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label"><i class="fas fa-calendar-check"></i> Fecha de fin</label>
+                    <label class="form-label" for="fecha-fin"><i class="fas fa-calendar-check"></i> Fecha de fin</label>
                     <input type="text" id="fecha-fin" class="form-control" readonly>
                 </div>
                 <div class="col-md-4">
@@ -28,6 +31,9 @@
                     </button>
                 </div>
             </div>
+            <p id="fechas-ayuda" class="text-muted small mb-3">
+                Pulsa sobre una fecha para elegirla en el calendario. El formato es día/mes/año.
+            </p>
 
             <div class="mb-3">
                 <label class="form-label" for="feedback"><i class="fas fa-comment-dots"></i> ¿Cómo estás esta semana? <span class="text-muted small">(opcional, se le pasa a la IA solo para este menú)</span></label>
@@ -36,7 +42,8 @@
             </div>
 
             <div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
-                <button class="btn btn-outline-primary" id="prefsBtn" type="button" onclick="togglePreferencias()">
+                <button class="btn btn-outline-primary" id="prefsBtn" type="button"
+                        onclick="togglePreferencias()" aria-expanded="false" aria-controls="prefs-card">
                     <i class="fas fa-user-check"></i> Ver mis preferencias
                 </button>
                 <span class="text-muted small"><i class="fas fa-palette"></i> Los días con color en los calendarios ya tienen menú guardado.</span>
@@ -44,34 +51,46 @@
 
             <div id="prefs-card" class="calendar-card" style="display: none;">
                 <div class="section-title"><i class="fas fa-user-check"></i> Preferencias y restricciones</div>
-                <div id="prefs-body"><p class="text-muted">Cargando...</p></div>
+                <div id="prefs-body"><p class="text-muted" role="status">Cargando...</p></div>
             </div>
 
             <p class="text-muted small">
                 <i class="fas fa-info-circle"></i>
-                La IA elige entre las recetas guardadas respetando tus preferencias
-                (<code>data/preferencias.json</code>) y evita las recetas de las últimas semanas.
+                La IA elige entre las recetas guardadas respetando tus preferencias y evitando las recetas de las últimas semanas.
                 Puede tardar uno o dos minutos.
             </p>
 
-            <div id="generar-estado"></div>
-            <div id="generar-resultado"></div>
+            <div id="generar-estado" role="status" aria-live="polite"></div>
+            <div id="generar-resultado" aria-live="polite"></div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/flatpickr.min.js"></script>
-<script src="/static/vendor/flatpickr-es.js"></script>
+<script src="{{ url_for('static', filename='vendor/flatpickr.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/flatpickr-es.js') }}"></script>
 <script>
     let fpInicio = null, fpFin = null;
     let allMenus = [];
     let recetaNombres = {};
     let prefsLoaded = false;
 
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     function parseDate(s) {
         return new Date(s + 'T00:00:00');
+    }
+
+    // El calendario muestra día/mes/año; la API espera YYYY-MM-DD
+    function isoDeFecha(valor) {
+        const partes = String(valor || '').split('/');
+        if (partes.length !== 3) return '';
+        const [dia, mes, anio] = partes;
+        if (!dia || !mes || !anio) return '';
+        return anio + '-' + mes.padStart(2, '0') + '-' + dia.padStart(2, '0');
     }
 
     function menuForDate(d) {
@@ -99,7 +118,7 @@
         domingo.setDate(lunes.getDate() + 6);
 
         fpInicio = flatpickr('#fecha-inicio', {
-            dateFormat: 'Y-m-d', defaultDate: lunes,
+            dateFormat: 'd/m/Y', defaultDate: lunes,
             onDayCreate: function(dObj, str, inst, dayElem) { decorateDay(dayElem); },
             onChange: function(selected) {
                 if (selected.length && fpFin) {
@@ -111,7 +130,7 @@
             }
         });
         fpFin = flatpickr('#fecha-fin', {
-            dateFormat: 'Y-m-d', defaultDate: domingo,
+            dateFormat: 'd/m/Y', defaultDate: domingo,
             onDayCreate: function(dObj, str, inst, dayElem) { decorateDay(dayElem); }
         });
     }
@@ -133,50 +152,54 @@
 
     function togglePreferencias() {
         const card = $('#prefs-card');
+        const btn = $('#prefsBtn');
         if (card.is(':visible')) {
             card.hide();
+            btn.attr('aria-expanded', 'false');
             return;
         }
         card.show();
+        btn.attr('aria-expanded', 'true');
         if (!prefsLoaded) loadPreferencias();
     }
 
     function loadPreferencias() {
+        $('#prefs-body').html('<p class="text-muted" role="status">Cargando...</p>');
         $.get('/menus/api/preferencias')
             .done(function(p) {
                 prefsLoaded = true;
                 let html = '';
-                if (p.descripcion) html += '<p class="text-muted small">' + p.descripcion + '</p>';
+                if (p.descripcion) html += '<p class="text-muted small">' + escapeHtml(p.descripcion) + '</p>';
                 html += '<div class="section-title"><i class="fas fa-ban"></i> Restricciones</div><ul class="ingredient-list">';
-                (p.restricciones || []).forEach(function(r) { html += '<li>' + r + '</li>'; });
+                (p.restricciones || []).forEach(function(r) { html += '<li>' + escapeHtml(r) + '</li>'; });
                 html += '</ul>';
                 if (p.favoritas && p.favoritas.length) {
                     html += '<div class="section-title"><i class="fas fa-star"></i> Recetas favoritas (se pueden repetir aunque sean recientes)</div><div>';
                     p.favoritas.forEach(function(f) {
-                        html += '<span class="pref-chip">' + (recetaNombres[f] || f) + '</span>';
+                        html += '<span class="pref-chip">' + escapeHtml(recetaNombres[f] || f) + '</span>';
                     });
                     html += '</div>';
                 }
                 html += '<div class="section-title"><i class="fas fa-history"></i> Platos habituales</div><div>';
-                (p.platos_habituales || []).forEach(function(pl) { html += '<span class="pref-chip">' + pl + '</span>'; });
+                (p.platos_habituales || []).forEach(function(pl) { html += '<span class="pref-chip">' + escapeHtml(pl) + '</span>'; });
                 html += '</div>';
                 html += '<div class="section-title"><i class="fas fa-rotate"></i> Anti-repetición</div>';
-                html += '<p>No se repiten las recetas de las últimas <strong>' + (p.evitar_repetir_de_semanas || 0) + '</strong> semanas (las favoritas se salvan de la exclusión).</p>';
+                html += '<p>No se repiten las recetas de las últimas <strong>' + escapeHtml(p.evitar_repetir_de_semanas || 0) + '</strong> semanas (las favoritas se salvan de la exclusión).</p>';
 
                 // Despensa básica (editable): no va a la lista de la compra
                 html += '<div class="section-title"><i class="fas fa-home"></i> Despensa básica <span class="text-muted small">(nunca aparece en la lista de la compra)</span></div>';
                 html += '<p class="text-muted small">Ingredientes que siempre tienes en casa. Se excluyen de la lista cuando una receta los lleva (coincidencia por palabra: "sal" quita "sal" y "sal gruesa", pero no "salmón").</p>';
                 html += '<div class="input-group">' +
-                        '<input type="text" id="prefs-despensa" class="form-control" value="' +
-                        ((p.despensa_base || []).join(', ')) + '" placeholder="agua, sal, aceite">' +
-                        '<button class="btn btn-outline-primary" type="button" onclick="guardarDespensa()"><i class="fas fa-save"></i> Guardar</button>' +
+                        '<input type="text" id="prefs-despensa" class="form-control" aria-label="Despensa básica" value="' +
+                        escapeHtml((p.despensa_base || []).join(', ')) + '" placeholder="agua, sal, aceite">' +
+                        '<button class="btn btn-outline-primary" id="prefs-guardar" type="button" onclick="guardarDespensa()"><i class="fas fa-save"></i> Guardar</button>' +
                         '</div>';
-                html += '<div id="prefs-despensa-msg" class="small mt-2" style="display:none"></div>';
+                html += '<div id="prefs-despensa-msg" class="small mt-2" style="display:none" role="status"></div>';
 
                 $('#prefs-body').html(html);
             })
             .fail(function() {
-                $('#prefs-body').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar las preferencias.</div>');
+                $('#prefs-body').html('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> Error al cargar las preferencias.</div>');
             });
     }
 
@@ -184,6 +207,7 @@
         const txt = $('#prefs-despensa').val() || '';
         const items = txt.split(',').map(s => s.trim()).filter(Boolean);
         const msg = $('#prefs-despensa-msg');
+        $('#prefs-guardar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
         $.ajax({
             url: '/menus/api/preferencias', method: 'PUT',
             contentType: 'application/json',
@@ -196,7 +220,10 @@
         })
         .fail(function(xhr) {
             const err = (xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar';
-            msg.removeClass('text-success').addClass('text-danger').html('<i class="fas fa-exclamation-triangle"></i> ' + err).show();
+            msg.removeClass('text-success').addClass('text-danger').html('<i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err)).show();
+        })
+        .always(function() {
+            $('#prefs-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
         });
     }
 
@@ -205,10 +232,14 @@
     }
 
     function generarMenu() {
-        const ini = $('#fecha-inicio').val();
-        const fin = $('#fecha-fin').val();
+        const ini = isoDeFecha($('#fecha-inicio').val());
+        const fin = isoDeFecha($('#fecha-fin').val());
         if (!ini || !fin) {
             setEstado('<div class="alert alert-warning"><i class="fas fa-exclamation-circle"></i> Indique fecha de inicio y de fin.</div>');
+            return;
+        }
+        if (fin < ini) {
+            setEstado('<div class="alert alert-warning"><i class="fas fa-exclamation-circle"></i> La fecha de fin no puede ser anterior a la de inicio.</div>');
             return;
         }
         $('#generarBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Generando...');
@@ -229,7 +260,7 @@
         .fail(function(xhr) {
             let msg = 'Error al generar el menú.';
             if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
-            setEstado('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + msg + '</div>');
+            setEstado('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(msg) + '</div>');
         })
         .always(function() {
             $('#generarBtn').prop('disabled', false).html('<i class="fas fa-wand-magic-sparkles"></i> Generar menú');
@@ -237,24 +268,25 @@
     }
 
     function renderResultado(data) {
-        const menu = data.menu;
+        const menu = data.menu || {};
         let guardado;
         if (data.modificados && data.modificados.length) {
-            guardado = 'Fusionado con los menús existentes: <code>' + data.modificados.join('</code>, <code>') + '</code>';
+            guardado = 'Se ha fusionado con ' + data.modificados.length + ' menú(s) existente(s).';
+        } else if (data.sobrescrito) {
+            guardado = 'Se ha guardado y actualizado un menú existente.';
         } else {
-            guardado = 'Guardado ' + (data.sobrescrito ? ' (ha sobrescrito un menú existente)' : '') +
-                       ' como <code>' + data.creado + '</code>';
+            guardado = 'El menú se ha guardado.';
         }
-        let html = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> ' +
-                   guardado +
-                   ' &mdash; <a href="/menus">ver en la vista de Menús</a></div>';
+        let html = '<div class="alert alert-success" role="status"><i class="fas fa-check-circle"></i> ' +
+                   escapeHtml(guardado) +
+                   ' &mdash; <a class="alert-link" href="{{ url_for('menus.index') }}">ver en Menús</a></div>';
         html += '<div class="recipe-detail">';
-        html += '<h3><i class="fas fa-calendar-alt"></i> ' + menu.titulo + '</h3>';
-        menu.dias.forEach(function(d) {
+        html += '<h3><i class="fas fa-calendar-alt"></i> ' + escapeHtml(menu.titulo || 'Menú') + '</h3>';
+        (menu.dias || []).forEach(function(d) {
             html += '<div class="day-card">';
-            html += '<h4><i class="fas fa-calendar-day"></i> ' + d.dia + '</h4>';
-            html += '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> Comida: ' + d.comida + '</div>';
-            html += '<div class="meal-title"><i class="fas fa-moon"></i> Cena: ' + d.cena + '</div>';
+            html += '<h4><i class="fas fa-calendar-day"></i> ' + escapeHtml(d.dia || '') + '</h4>';
+            html += '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> Comida: ' + escapeHtml(d.comida || '') + '</div>';
+            html += '<div class="meal-title"><i class="fas fa-moon"></i> Cena: ' + escapeHtml(d.cena || '') + '</div>';
             html += '</div>';
         });
         html += '</div>';

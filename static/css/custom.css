@@ -1,122 +1,46 @@
-/* Estilos personalizados para el Gestor de Menús */
+/* Estilos personalizados de home-management */
 
-/* Mejora de los detalles y resumen */
-details {
-    margin-bottom: 10px;
-    border-radius: 6px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-details[open] {
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-summary {
+/* ---------- Base ---------- */
+body {
+    padding-top: 20px;
     background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 0;
-    cursor: pointer;
-    padding: 12px 15px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Enlace de salto para navegación por teclado */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 1rem;
+    z-index: 2000;
+    padding: 0.6rem 1rem;
+    background: #fff;
+    color: #0056b3;
+    border: 2px solid #0056b3;
+    border-radius: 6px;
     font-weight: 600;
-    transition: background-color 0.2s;
+    text-decoration: none;
 }
 
-summary:hover {
-    background-color: #e9ecef;
+.skip-link:focus {
+    top: 1rem;
 }
 
-/* Estilos para las tarjetas */
-.card {
-    border-radius: 10px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    border: none;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+    outline: 3px solid #0d6efd;
+    outline-offset: 2px;
 }
 
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-/* Estilos para los días de la semana */
-.day-card {
-    border-left: 4px solid #007bff;
-    transition: all 0.3s ease;
-}
-
-.day-card:hover {
-    border-left-color: #0056b3;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-/* Estilos para los botones */
-.btn {
-    border-radius: 50px;
-    padding: 8px 16px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-/* Estilos para las listas de ingredientes */
-.ingredient-list {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.ingredient-list li {
-    padding: 5px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.ingredient-list li:last-child {
-    border-bottom: none;
-}
-
-/* Estilos para las alertas */
-.alert {
-    border-radius: 8px;
-    border: none;
-    padding: 15px;
-}
-
-/* Estilos para las secciones */
-.section-title {
-    font-size: 1.1em;
-    font-weight: 600;
-    margin: 15px 0 10px;
-    padding: 8px 0;
-    border-bottom: 2px solid #007bff;
-    color: #333;
-}
-
-/* Estilos para los badges */
-.badge {
-    font-size: 0.75em;
-    padding: 4px 8px;
-    border-radius: 10px;
-    font-weight: 500;
-}
-
-/* Estilos para el footer */
-.footer {
-    background-color: #343a40;
-    color: #fff;
-    margin-top: 3rem;
-    padding: 2rem 0;
-}
-
-/* Estilos para el header */
+/* ---------- Cabecera ---------- */
 .header {
     background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    padding: 2rem 0;
+    color: #fff;
+    padding: 1.5rem 0;
     margin-bottom: 2rem;
     border-radius: 0 0 15px 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -125,158 +49,26 @@ summary:hover {
 .header h1 {
     margin: 0;
     font-weight: 700;
-    font-size: 2.2rem;
+    font-size: 2rem;
+}
+
+.header h1 i {
+    margin-right: 0.4rem;
 }
 
 .header p {
     margin: 0.5rem 0 0;
     opacity: 0.9;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
 }
 
-/* Estilos para los iconos */
-i {
-    margin-right: 8px;
-    color: #007bff;
+/* Los iconos dentro de la cabecera heredan el color blanco */
+.header i,
+.view-tab i {
+    color: inherit;
 }
 
-/* Estilos para el contenedor principal */
-.menu-card {
-    background-color: #fff;
-    border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    margin-bottom: 2rem;
-}
-
-/* Estilos para las listas de la compra */
-.shopping-list {
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 20px;
-    margin: 20px 0;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-/* Estilos para los elementos de receta */
-.recipe-card {
-    border-left: 3px solid #007bff;
-    margin-bottom: 15px;
-}
-
-/* Estilos para los elementos opcionales */
-.optional-ingredient {
-    opacity: 0.8;
-}
-
-.optional-ingredient strong {
-    color: #6c757d;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .menu-card {
-        padding: 15px;
-    }
-    
-    .day-card {
-        padding: 12px;
-    }
-    
-    .header h1 {
-        font-size: 1.8rem;
-    }
-    
-    .section-title {
-        font-size: 1em;
-    }
-    
-    .col-md-6 {
-        margin-bottom: 15px;
-    }
-}
-
-/* ===== Calendario de menús ===== */
-.calendar-card {
-    background-color: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.calendar-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-}
-
-.calendar-side {
-    min-width: 220px;
-    flex: 1;
-    max-width: 380px;
-}
-
-.flatpickr-calendar.inline {
-    margin: 0 auto;
-    box-shadow: none;
-    border: 1px solid #e9ecef;
-}
-
-/* Días cubiertos por un menú: se pinta con la variable --menu-color que fija el JS */
-.flatpickr-day.menu-day {
-    background-color: var(--menu-color, #e9ecef);
-    border-color: var(--menu-color, #e9ecef);
-    color: #212529;
-    cursor: pointer;
-    border-radius: 6px;
-}
-
-.flatpickr-day.menu-day:hover {
-    background-color: var(--menu-color, #e9ecef);
-    filter: brightness(0.88);
-}
-
-.flatpickr-day.menu-day.selected {
-    background-color: var(--menu-color, #e9ecef);
-    filter: brightness(0.8);
-}
-
-.flatpickr-day.today {
-    box-shadow: inset 0 0 0 2px #0d6efd;
-}
-
-.calendar-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 8px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.legend-item:hover {
-    background-color: #f1f3f5;
-}
-
-.legend-swatch {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    flex-shrink: 0;
-}
-
-/* ===== Navegación de vistas (Menús / Recetas) ===== */
+/* ---------- Navegación ---------- */
 .view-nav {
     display: flex;
     gap: 10px;
@@ -293,17 +85,12 @@ i {
     border-radius: 50px;
     border: 1px solid rgba(255, 255, 255, 0.5);
     font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.view-tab i {
-    color: #fff;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .view-tab:hover {
     background-color: rgba(255, 255, 255, 0.15);
     color: #fff;
-    transform: translateY(-2px);
 }
 
 .view-tab.active {
@@ -313,35 +100,242 @@ i {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.view-tab.active i {
-    color: #0056b3;
+/* ---------- Tarjetas y contenedores ---------- */
+.card {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1.5rem;
 }
 
-/* ===== Lista de recetas ===== */
-.recipe-list {
-    max-height: 340px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+.menu-card {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
 }
 
-.recipe-list-item {
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
+.calendar-card {
+    background-color: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.recipe-list-item:hover {
-    background-color: #f1f3f5;
+/* La tarjeta del portal sí es clicable; el resto no deben "levantarse" */
+.portal-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
 }
 
-.recipe-list-item.active {
-    background-color: #e7f1ff;
+.portal-card .card {
+    padding: 1rem 0;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+@media (hover: hover) {
+    .portal-card:hover .card {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12);
+    }
+}
+
+.portal-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.portal-icon i {
+    color: #007bff;
+}
+
+.portal-cards .card-title {
     font-weight: 600;
 }
 
-/* ===== Detalle de receta (vista Recetas) ===== */
+/* ---------- Botones ---------- */
+.btn {
+    border-radius: 50px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.btn-sm {
+    border-radius: 8px;
+    padding: 4px 10px;
+}
+
+/* El grupo de botones conserva sus esquinas exteriores redondeadas,
+   pero los segmentos intermedios no deben ser píldoras completas. */
+.btn-group > .btn {
+    border-radius: 0;
+}
+.btn-group > .btn:first-child {
+    border-top-left-radius: 50px;
+    border-bottom-left-radius: 50px;
+}
+.btn-group > .btn:last-child {
+    border-top-right-radius: 50px;
+    border-bottom-right-radius: 50px;
+}
+.btn-group > .btn:only-child {
+    border-radius: 50px;
+}
+
+.btn i,
+.alert i {
+    color: inherit;
+    margin-right: 0.35rem;
+}
+
+@media (hover: hover) {
+    .btn:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* ---------- Iconos con color de acento ---------- */
+.menu-card h2 i,
+.card h2 i,
+.modal-title i,
+.recipe-detail h3 i,
+.section-title i,
+.meal-title i {
+    color: #007bff;
+    margin-right: 0.35rem;
+}
+
+/* ---------- Detalles y resumen ---------- */
+details {
+    margin-bottom: 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+details[open] {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+summary {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0;
+    cursor: pointer;
+    padding: 12px 15px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+summary:hover {
+    background-color: #e9ecef;
+}
+
+.shopping-list {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.shopping-list-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* ---------- Días y comidas ---------- */
+.day-card {
+    background-color: #fff;
+    border-left: 4px solid #007bff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.meal-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #007bff;
+}
+
+/* ---------- Listas de ingredientes ---------- */
+.ingredient-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.ingredient-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ingredient-list li:last-child {
+    border-bottom: none;
+}
+
+.optional-ingredient {
+    opacity: 0.8;
+}
+
+.optional-ingredient strong {
+    color: #6c757d;
+}
+
+.recalentar {
+    color: #666;
+    font-style: italic;
+    font-size: 0.95em;
+}
+
+.opcional {
+    color: #666;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.highlight {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* ---------- Secciones y avisos ---------- */
+.section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 15px 0 10px;
+    padding: 8px 0;
+    border-bottom: 2px solid #007bff;
+    color: #333;
+}
+
+.alert {
+    border-radius: 8px;
+    border: none;
+    padding: 15px;
+}
+
+.badge {
+    font-size: 0.75em;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+/* ---------- Recetas ---------- */
+.recipe-card {
+    border-left: 3px solid #007bff;
+    margin-bottom: 15px;
+}
+
 .recipe-detail {
     background-color: #fff;
     border: 1px solid #e9ecef;
@@ -365,7 +359,109 @@ i {
     padding-left: 5px;
 }
 
-/* Chips para platos habituales y favoritas en el visor de preferencias */
+/* ---------- Calendario ---------- */
+.calendar-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+.calendar-side {
+    min-width: 220px;
+    flex: 1;
+    max-width: 380px;
+}
+
+.flatpickr-calendar.inline {
+    margin: 0 auto;
+    box-shadow: none;
+    border: 1px solid #e9ecef;
+}
+
+.flatpickr-day.menu-day {
+    background-color: var(--menu-color, #e9ecef);
+    border-color: var(--menu-color, #e9ecef);
+    color: #212529;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.flatpickr-day.menu-day:hover,
+.flatpickr-day.menu-day.selected {
+    background-color: var(--menu-color, #e9ecef);
+    filter: brightness(0.9);
+}
+
+.flatpickr-day.today {
+    box-shadow: inset 0 0 0 2px #0d6efd;
+}
+
+.calendar-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.legend-item:hover {
+    background-color: #f1f3f5;
+}
+
+.legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* ---------- Lista de recetas ---------- */
+.recipe-list {
+    max-height: 340px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recipe-list-item {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.recipe-list-item:hover {
+    background-color: #f1f3f5;
+}
+
+.recipe-list-item.active {
+    background-color: #e7f1ff;
+    font-weight: 600;
+}
+
+/* ---------- Preferencias ---------- */
 .pref-chip {
     display: inline-block;
     background-color: #eef3f8;
@@ -375,23 +471,107 @@ i {
     margin: 2px 3px;
     font-size: 0.9em;
 }
-/* Portal de inicio (home-management) */
-.portal-card {
+
+/* ---------- Gráfica de gastos ---------- */
+.chart-wrap {
+    position: relative;
+    height: 320px;
+    width: 100%;
+}
+
+.chart-wrap canvas {
     display: block;
-    color: inherit;
-    text-decoration: none;
 }
-.portal-card .card {
-    padding: 1rem 0;
-    transition: transform 0.2s, box-shadow 0.2s;
+
+/* ---------- Footer ---------- */
+.footer {
+    background-color: #343a40;
+    color: #f8f9fa;
+    margin-top: 3rem;
+    padding: 1.5rem 0;
+    text-align: center;
+    font-size: 0.9em;
 }
-.portal-icon {
-    font-size: 3rem;
-    color: #007bff;
-    margin-bottom: 1rem;
+
+.footer p {
+    opacity: 0.95;
 }
-.portal-cards .card-title {
-    font-weight: 600;
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .menu-card {
+        padding: 15px;
+    }
+
+    .day-card {
+        padding: 12px;
+    }
+
+    .header h1 {
+        font-size: 1.8rem;
+    }
+
+    .section-title {
+        font-size: 1em;
+    }
+
+    .col-md-6 {
+        margin-bottom: 15px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    body {
+        padding-top: 12px;
+    }
+
+    .header {
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+        border-radius: 0 0 10px 10px;
+    }
+
+    .header h1 {
+        font-size: 1.55rem;
+    }
+
+    .header p {
+        margin-top: 0.25rem;
+        font-size: 0.95rem;
+    }
+
+    .view-nav {
+        gap: 6px;
+        margin-top: 0.8rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+
+    .view-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .view-tab {
+        flex: 0 0 auto;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .chart-wrap {
+        height: 260px;
+    }
+
+    .menu-card {
+        padding: 12px;
+    }
+
+    .footer {
+        margin-top: 2rem;
+        padding: 1rem 0;
+    }
 }
 
 /* Tablas responsive: en pantallas estrechas cada fila se vuelve una
@@ -404,9 +584,11 @@ i {
         display: block;
         width: 100%;
     }
+
     .tabla-cards thead {
         display: none;
     }
+
     .tabla-cards tr {
         border: 1px solid #dee2e6;
         border-radius: 6px;
@@ -414,6 +596,7 @@ i {
         padding: 0.4rem 0.6rem;
         background: #fff;
     }
+
     .tabla-cards td {
         display: flex;
         justify-content: space-between;
@@ -423,12 +606,14 @@ i {
         padding: 0.25rem 0;
         text-align: right;
     }
+
     .tabla-cards td::before {
         content: attr(data-label);
         font-weight: 600;
         text-align: left;
-        color: #6c757d;
+        color: #5c636a;
     }
+
     .tabla-cards td[data-label=""] {
         justify-content: flex-end;
     }

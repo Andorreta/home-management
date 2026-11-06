@@ -1,15 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Gastos - Home Management{% endblock %}
+{% block title %}Gastos · Home Management{% endblock %}
+
+{% block header_icon %}fa-receipt{% endblock %}
+
 {% block header_title %}Gastos de la casa{% endblock %}
 {% block header_subtitle %}Gastos e ingresos, con balance mensual{% endblock %}
 
 {% block content %}
+<div id="gastos-alerta" role="alert" aria-live="polite"></div>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div class="btn-group" role="group" aria-label="Periodo" id="selector-periodo">
-        <button type="button" class="btn btn-outline-primary" data-meses="1">1 mes</button>
-        <button type="button" class="btn btn-outline-primary" data-meses="3">3 meses</button>
-        <button type="button" class="btn btn-outline-primary active" data-meses="12">1 año</button>
+        <button type="button" class="btn btn-outline-primary" data-meses="1" aria-pressed="false">1 mes</button>
+        <button type="button" class="btn btn-outline-primary" data-meses="3" aria-pressed="false">3 meses</button>
+        <button type="button" class="btn btn-outline-primary active" data-meses="12" aria-pressed="true">1 año</button>
     </div>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#movimiento-modal" onclick="nuevoMovimiento()">
         <i class="fas fa-plus-circle"></i> Nuevo movimiento
@@ -22,7 +27,10 @@
         <div class="card">
             <div class="card-body">
                 <h2 id="grafico-titulo"><i class="fas fa-chart-column"></i> Último año</h2>
-                <canvas id="grafico" height="260"></canvas>
+                <div class="chart-wrap">
+                    <canvas id="grafico" role="img" aria-label="Gráfico de ingresos, gastos y balance acumulado"></canvas>
+                </div>
+                <p id="grafico-resumen" class="visually-hidden"></p>
             </div>
         </div>
     </div>
@@ -87,8 +95,12 @@
                     <input type="hidden" id="mov-ticket-path">
                     <div class="pb-3 mb-3 border-bottom">
                         <label for="mov-foto" class="form-label"><i class="fas fa-camera"></i> Foto del ticket (opcional)</label>
-                        <input type="file" id="mov-foto" accept="image/*" capture="environment" class="form-control" onchange="analizarTicket(this)">
-                        <div id="ticket-estado" class="small mt-2" style="display:none"></div>
+                        <input type="file" id="mov-foto" accept="image/*" capture="environment" class="form-control"
+                               aria-describedby="ticket-ayuda" onchange="analizarTicket(this)">
+                        <p id="ticket-ayuda" class="small text-muted mt-1 mb-0">
+                            En el móvil se abre la cámara. La IA intenta rellenar fecha, importe y categoría.
+                        </p>
+                        <div id="ticket-estado" class="small mt-2" style="display:none" role="status"></div>
                         <ul id="ticket-articulos" class="small text-muted mt-2 mb-0"></ul>
                     </div>
                     <div class="row g-3">
@@ -117,11 +129,11 @@
                             <input type="text" id="mov-descripcion" class="form-control" placeholder="opcional">
                         </div>
                     </div>
-                    <div id="mov-error" class="text-danger mt-3" style="display:none"></div>
+                    <div id="mov-error" class="alert alert-danger mt-3" style="display:none" role="alert"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+                    <button type="submit" class="btn btn-primary" id="mov-guardar"><i class="fas fa-save"></i> Guardar</button>
                 </div>
             </form>
         </div>
@@ -130,7 +142,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
 <script>
     let chart = null;
     let meses = 12;
@@ -138,6 +150,19 @@
     const fmtEUR = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
     const NOMBRES_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
                          'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    // Fecha local en formato ISO (evita el desfase de toISOString en UTC)
+    function hoyISO() {
+        const d = new Date();
+        const mes = String(d.getMonth() + 1).padStart(2, '0');
+        const dia = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + mes + '-' + dia;
+    }
+
+    function avisoGastos(mensaje, tipo) {
+        $('#gastos-alerta').html('<div class="alert alert-' + (tipo || 'danger') + '" role="alert">' +
+            '<i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(mensaje) + '</div>');
+    }
 
     function escapeHtml(s) {
         return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -156,27 +181,49 @@
     // --- Carga de datos y refresco completo ---
 
     function cargarTodo() {
-        $.get('/gastos/api/comparativa?meses=' + meses, function (datos) {
-            pintarGrafico(datos);
-            pintarHistorico(datos.actual);
-        });
-        $.get('/gastos/api/movimientos?limit=50', pintarMovimientos);
-        $.get('/gastos/api/categorias', function (cats) {
-            const todos = (cats.gasto || []).concat(cats.ingreso || []);
-            $('#categorias').html(todos.map(c => '<option value="' + escapeHtml(c) + '">').join(''));
-        });
+        $('#gastos-alerta').empty();
+        $.get('/gastos/api/comparativa?meses=' + meses)
+            .done(function (datos) {
+                pintarGrafico(datos);
+                pintarHistorico(datos.actual);
+            })
+            .fail(function () { avisoGastos('No se pudo cargar el resumen mensual.'); });
+
+        $.get('/gastos/api/movimientos?limit=50', pintarMovimientos)
+            .fail(function () { avisoGastos('No se pudieron cargar los movimientos.'); });
+
+        $.get('/gastos/api/categorias')
+            .done(function (cats) {
+                const todos = (cats.gasto || []).concat(cats.ingreso || []);
+                $('#categorias').html(todos.map(c => '<option value="' + escapeHtml(c) + '">').join(''));
+            })
+            .fail(function () { /* las categorías son una ayuda, no un requisito */ });
     }
 
     function pintarGrafico(datos) {
-        const resumen = datos.actual;
+        const resumen = datos.actual || [];
         const titulos = { 1: 'Este mes vs. mismo mes del año pasado', 3: 'Últimos 3 meses' };
         $('#grafico-titulo').html('<i class="fas fa-chart-column"></i> ' + (titulos[meses] || 'Último año'));
+
+        const totalIngresos = resumen.reduce((s, r) => s + (r.ingresos || 0), 0);
+        const totalGastos = resumen.reduce((s, r) => s + (r.gastos || 0), 0);
+        const ultimo = resumen[resumen.length - 1];
+        $('#grafico-resumen').text(resumen.length
+            ? 'Periodo mostrado: ingresos ' + fmtEUR.format(totalIngresos) +
+              ', gastos ' + fmtEUR.format(totalGastos) +
+              ', balance acumulado ' + fmtEUR.format(ultimo ? ultimo.acumulado : 0) + '.'
+            : 'No hay datos para el periodo seleccionado.');
+
+        if (typeof Chart === 'undefined') {
+            avisoGastos('No se pudo cargar la librería del gráfico. Los datos de las tablas siguen disponibles.');
+            return;
+        }
 
         const datasets = [
             { type: 'bar', label: 'Ingresos', data: resumen.map(r => r.ingresos), backgroundColor: '#59a14f' },
             { type: 'bar', label: 'Gastos', data: resumen.map(r => r.gastos), backgroundColor: '#e15759' }
         ];
-        if (meses < 12) {
+        if (meses < 12 && datos.anterior) {
             datasets.push(
                 { type: 'bar', label: 'Ingresos año anterior', data: datos.anterior.map(r => r.ingresos), backgroundColor: '#59a14f66' },
                 { type: 'bar', label: 'Gastos año anterior', data: datos.anterior.map(r => r.gastos), backgroundColor: '#e1575966' }
@@ -197,8 +244,13 @@
             data: { labels: resumen.map(r => etiquetaMes(r.mes)), datasets: datasets },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 10, font: { size: 11 } }
+                    },
                     tooltip: {
                         callbacks: {
                             title: items => nombreMes(resumen[items[0].dataIndex].mes),
@@ -206,12 +258,25 @@
                         }
                     }
                 },
-                scales: { y: { ticks: { callback: v => fmtEUR.format(v) } } }
+                scales: {
+                    x: {
+                        ticks: { maxRotation: 0, autoSkip: true, font: { size: 10 } },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => fmtEUR.format(v), font: { size: 10 } }
+                    }
+                }
             }
         });
     }
 
     function pintarHistorico(resumen) {
+        if (!resumen || !resumen.length) {
+            $('#historico tbody').html('<tr><td colspan="5" class="text-muted">Sin datos para el periodo.</td></tr>');
+            return;
+        }
         const filas = resumen.slice().reverse().map(r =>
             '<tr>' +
             '<td data-label="Mes">' + nombreMes(r.mes) + '</td>' +
@@ -231,14 +296,14 @@
             const color = m.tipo === 'gasto' ? '#e15759' : '#59a14f';
             const icono = m.tipo === 'gasto' ? 'fa-arrow-down' : 'fa-arrow-up';
             return '<tr>' +
-                '<td data-label="Fecha">' + m.fecha.split('-').reverse().join('/') + '</td>' +
-                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '"></i> ' + escapeHtml(m.categoria || m.tipo) +
-                    (m.ticket_path ? ' <a href="/gastos/ticket/' + m.id + '" target="_blank" title="Ver foto del ticket"><i class="fas fa-paperclip"></i></a>' : '') + '</td>' +
+                '<td data-label="Fecha">' + formatearFecha(m.fecha) + '</td>' +
+                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '" aria-hidden="true"></i> ' + escapeHtml(m.categoria || m.tipo) +
+                    (m.ticket_path ? ' <a href="/gastos/ticket/' + m.id + '" target="_blank" rel="noopener" aria-label="Ver foto del ticket"><i class="fas fa-paperclip" aria-hidden="true"></i></a>' : '') + '</td>' +
                 '<td data-label="Descripción">' + escapeHtml(m.descripcion) + '</td>' +
                 '<td data-label="Importe" style="color:' + color + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
                 '<td data-label="" class="text-end">' +
-                    '<button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="editarMovimiento(' + m.id + ')"><i class="fas fa-pen"></i></button> ' +
-                    '<button class="btn btn-sm btn-outline-danger" title="Borrar" onclick="borrarMovimiento(' + m.id + ')"><i class="fas fa-trash"></i></button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary" title="Editar" aria-label="Editar movimiento" onclick="editarMovimiento(' + m.id + ')"><i class="fas fa-pen" aria-hidden="true"></i></button> ' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger" title="Borrar" aria-label="Borrar movimiento" onclick="borrarMovimiento(' + m.id + ')"><i class="fas fa-trash" aria-hidden="true"></i></button>' +
                 '</td>' +
                 '</tr>';
         });
@@ -297,14 +362,14 @@
                 url: '/gastos/api/tickets', method: 'POST',
                 data: form, processData: false, contentType: false, timeout: 300000
             });
-        }).done(function (datos) {
+        }).then(function (datos) {
             if (datos.ticket_path) $('#mov-ticket-path').val(datos.ticket_path);
             if (datos.error) {
                 $('#ticket-estado').html('<span class="text-danger">No se pudo analizar: ' + escapeHtml(datos.error) +
                     '</span><br><span class="text-muted">La foto queda guardada: puedes rellenar el formulario a mano.</span>');
                 return;
             }
-            const s = datos.sugerencia;
+            const s = datos.sugerencia || {};
             if (s.fecha) $('#mov-fecha').val(s.fecha);
             if (s.total != null) $('#mov-importe').val(s.total);
             if (s.categoria) $('#mov-categoria').val(s.categoria);
@@ -314,9 +379,9 @@
                 '<li>' + escapeHtml(a.descripcion) + ' — ' + fmtEUR.format(a.importe) + '</li>'));
             $('#ticket-estado').show().html('<span class="text-success"><i class="fas fa-check"></i> ' +
                 'Ticket leído. Revisa los datos y guarda.</span>');
-        }).fail(function (xhr) {
-            const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Error subiendo la foto';
-            if (xhr.responseJSON && xhr.responseJSON.ticket_path) $('#mov-ticket-path').val(xhr.responseJSON.ticket_path);
+        }, function (xhr) {
+            const msg = (xhr && xhr.responseJSON && xhr.responseJSON.error) || (xhr && xhr.message) || 'Error subiendo la foto';
+            if (xhr && xhr.responseJSON && xhr.responseJSON.ticket_path) $('#mov-ticket-path').val(xhr.responseJSON.ticket_path);
             $('#ticket-estado').html('<span class="text-danger">' + escapeHtml(msg) + '</span>');
         });
     }
@@ -336,30 +401,42 @@
             ? $.ajax({ url: '/gastos/api/movimiento/' + id, method: 'PUT', contentType: 'application/json', data: JSON.stringify(datos) })
             : $.ajax({ url: '/gastos/api/movimientos', method: 'POST', contentType: 'application/json', data: JSON.stringify(datos) });
 
+        $('#mov-error').hide();
+        $('#mov-guardar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
         peticion.done(function () {
             cerrarModal();
             limpiarFormulario();
             cargarTodo();
+            mostrarToast('Movimiento guardado.', 'success');
         }).fail(function (xhr) {
             $('#mov-error').text((xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar el movimiento').show();
+        }).always(function () {
+            $('#mov-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
         });
         return false;
     }
 
     function editarMovimiento(id) {
-        $.get('/gastos/api/movimientos?limit=500').done(function (movs) {
-            const m = movs.find(x => x.id === id);
-            if (!m) return;
-            limpiarFormulario();
-            $('#mov-id').val(m.id);
-            $('#mov-fecha').val(m.fecha);
-            $('#mov-tipo').val(m.tipo);
-            $('#mov-importe').val(m.importe);
-            $('#mov-categoria').val(m.categoria);
-            $('#mov-descripcion').val(m.descripcion);
-            $('#movimiento-modal-titulo').html('<i class="fas fa-pen"></i> Editar movimiento');
-            abrirModal();
-        });
+        $.get('/gastos/api/movimientos?limit=500')
+            .done(function (movs) {
+                const m = movs.find(x => x.id === id);
+                if (!m) {
+                    mostrarToast('No se encontró el movimiento.');
+                    return;
+                }
+                limpiarFormulario();
+                $('#mov-id').val(m.id);
+                $('#mov-fecha').val(m.fecha);
+                $('#mov-tipo').val(m.tipo);
+                $('#mov-importe').val(m.importe);
+                $('#mov-categoria').val(m.categoria);
+                $('#mov-descripcion').val(m.descripcion);
+                $('#movimiento-modal-titulo').html('<i class="fas fa-pen"></i> Editar movimiento');
+                abrirModal();
+            })
+            .fail(function () {
+                mostrarToast('No se pudieron cargar los datos del movimiento.');
+            });
     }
 
     function limpiarFormulario() {
@@ -370,20 +447,28 @@
         $('#ticket-articulos').empty();
         $('#mov-error').hide();
         $('#movimiento-form')[0].reset();
-        $('#mov-fecha').val(new Date().toISOString().slice(0, 10));
+        $('#mov-fecha').val(hoyISO());
         $('#movimiento-modal-titulo').html('<i class="fas fa-plus-circle"></i> Nuevo movimiento');
     }
 
     function borrarMovimiento(id) {
-        if (!confirm('¿Borrar este movimiento?')) return;
-        $.ajax({ url: '/gastos/api/movimiento/' + id, method: 'DELETE' }).done(cargarTodo);
+        pedirConfirmacion('¿Borrar este movimiento?', function () {
+            $.ajax({ url: '/gastos/api/movimiento/' + id, method: 'DELETE' })
+                .done(function () {
+                    cargarTodo();
+                    mostrarToast('Movimiento borrado.', 'success');
+                })
+                .fail(function (xhr) {
+                    mostrarToast((xhr.responseJSON && xhr.responseJSON.error) || 'Error al borrar el movimiento');
+                });
+        }, { textoBoton: 'Borrar' });
     }
 
     $(function () {
-        $('#mov-fecha').val(new Date().toISOString().slice(0, 10));
+        $('#mov-fecha').val(hoyISO());
         $('#selector-periodo button').on('click', function () {
-            $('#selector-periodo button').removeClass('active');
-            $(this).addClass('active');
+            $('#selector-periodo button').removeClass('active').attr('aria-pressed', 'false');
+            $(this).addClass('active').attr('aria-pressed', 'true');
             meses = parseInt($(this).data('meses'), 10);
             cargarTodo();
         });

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Home Management{% endblock %}
+{% block title %}Inicio · Home Management{% endblock %}
+{% block header_icon %}fa-house{% endblock %}
 {% block header_title %}Home Management{% endblock %}
 {% block header_subtitle %}La casa, en un solo sitio{% endblock %}
 
@@ -10,7 +11,7 @@
         <a href="{{ url_for('menus.index') }}" class="portal-card">
             <div class="card text-center h-100">
                 <div class="card-body">
-                    <div class="portal-icon"><i class="fas fa-calendar-week"></i></div>
+                    <div class="portal-icon"><i class="fas fa-calendar-week" aria-hidden="true"></i></div>
                     <h2 class="card-title">Ver menús</h2>
                     <p class="card-text text-muted">Menús semanales, recetas y lista de la compra.</p>
                 </div>
@@ -21,7 +22,7 @@
         <a href="{{ url_for('gastos.index') }}" class="portal-card">
             <div class="card text-center h-100">
                 <div class="card-body">
-                    <div class="portal-icon"><i class="fas fa-receipt"></i></div>
+                    <div class="portal-icon"><i class="fas fa-receipt" aria-hidden="true"></i></div>
                     <h2 class="card-title">Ver gastos</h2>
                     <p class="card-text text-muted">Gastos e ingresos de la casa, con gráficos y balance mensual.</p>
                 </div>

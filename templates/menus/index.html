@@ -1,25 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}Gestor de Menús{% endblock %}
+{% block title %}Menús · Home Management{% endblock %}
 
-{% block header_title %}Gestor de Menús{% endblock %}
+{% block header_icon %}fa-calendar-week{% endblock %}
 
-{% block header_subtitle %}Visualización y manejo de menús semanales con recetas{% endblock %}
+{% block header_title %}Menús{% endblock %}
+
+{% block header_subtitle %}Menús semanales, recetas y lista de la compra{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/vendor/flatpickr.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/flatpickr.min.css') }}">
 <div class="row">
     <div class="col-md-12">
         <div class="menu-card">
-            <h2><i class="fas fa-calendar-week"></i> Gestor de Menús</h2>
-            
-            <div class="mb-4 d-flex gap-2 flex-wrap">
-                <button class="btn btn-primary btn-lg" id="menuBtn" type="button" onclick="toggleCalendar()">
-                    <i class="fas fa-calendar-alt"></i> <span id="menuBtnLabel">Cargando...</span>
+            <h2><i class="fas fa-calendar-week"></i> Semana actual</h2>
+
+            <div class="mb-4 d-flex gap-2 flex-wrap align-items-center">
+                <button class="btn btn-primary btn-lg" id="menuBtn" type="button"
+                        onclick="toggleCalendar()" aria-expanded="false" aria-controls="calendar-card">
+                    <i class="fas fa-calendar-alt"></i> Ver calendario
                 </button>
                 <button class="btn btn-success btn-lg" type="button" onclick="abrirModalMenuNuevo()">
                     <i class="fas fa-plus-circle"></i> Nuevo menú
                 </button>
+                <span id="menuStatus" class="text-muted small" role="status" aria-live="polite">Cargando…</span>
             </div>
             
             <div id="calendar-card" class="calendar-card" style="display: none;">
@@ -43,21 +47,22 @@
 </div>
 
 <!-- Modal de menú nuevo -->
-<div class="modal fade" id="menu-nuevo-modal" tabindex="-1">
+<div class="modal fade" id="menu-nuevo-modal" tabindex="-1"
+     aria-labelledby="menu-nuevo-titulo" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Menú nuevo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="menu-nuevo-titulo"><i class="fas fa-plus-circle"></i> Menú nuevo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form onsubmit="return crearMenuNuevo(event)">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Fecha de inicio *</label>
+                        <label class="form-label" for="mn-fecha">Fecha de inicio *</label>
                         <input type="date" id="mn-fecha" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Días</label>
+                        <label class="form-label" for="mn-dias">Días</label>
                         <input type="number" id="mn-dias" class="form-control" min="1" max="14" value="7">
                     </div>
                     <p class="text-muted small">Se crea vacío (todos los días con sobras) y se abre el editor para elegir los platos.</p>
@@ -65,7 +70,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success"><i class="fas fa-check"></i> Crear y editar</button>
+                    <button type="submit" class="btn btn-success" id="mn-crear"><i class="fas fa-check"></i> Crear y editar</button>
                 </div>
             </form>
         </div>
@@ -74,8 +79,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/flatpickr.min.js"></script>
-<script src="/static/vendor/flatpickr-es.js"></script>
+<script src="{{ url_for('static', filename='vendor/flatpickr.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/flatpickr-es.js') }}"></script>
 <script>
     let allMenus = [];
     let fp = null;
@@ -97,13 +102,14 @@
                 allMenus = data;
                 const current = findCurrentMenu();
                 if (current) {
-                    updateButton(current);
+                    updateStatus(current);
                     loadMenuData(current.id);
                 } else {
-                    $('#menuBtnLabel').text('No hay menús');
+                    $('#menuStatus').text('No hay menús');
                 }
             })
             .fail(function() {
+                $('#menuStatus').text('No se pudieron cargar los menús');
                 $('#data-container').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error al cargar los menús.</div>');
             });
     });
@@ -138,17 +144,20 @@
         return fmtDay.format(ini) + ' de ' + fmtMonthYear.format(ini) + ' → ' + fmtDay.format(fin) + ' de ' + fmtMonthYear.format(fin);
     }
 
-    function updateButton(m) {
-        $('#menuBtnLabel').text(m ? 'Menú del ' + fmtRange(m) : 'Sin menú activo');
+    function updateStatus(m) {
+        $('#menuStatus').text(m ? 'Menú del ' + fmtRange(m) : 'Sin menú activo');
     }
 
     function toggleCalendar() {
         const card = $('#calendar-card');
+        const btn = $('#menuBtn');
         if (card.is(':visible')) {
             card.hide();
+            btn.attr('aria-expanded', 'false');
             return;
         }
         card.show();
+        btn.attr('aria-expanded', 'true');
         if (!fp) initCalendar();
         renderLegend();
     }
@@ -165,7 +174,16 @@
                     dayElem.classList.add('menu-day');
                     dayElem.style.setProperty('--menu-color', menu.color);
                     dayElem.title = menu.titulo;
+                    dayElem.setAttribute('role', 'button');
+                    dayElem.setAttribute('tabindex', '0');
+                    dayElem.setAttribute('aria-label', 'Ver menú del ' + fmtRange(menu));
                     dayElem.addEventListener('click', function() { selectMenu(menu.id); });
+                    dayElem.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            selectMenu(menu.id);
+                        }
+                    });
                 }
             },
             onMonthChange: function() { renderLegend(); }
@@ -181,9 +199,9 @@
         allMenus.forEach(function(m) {
             if (!m.fecha_inicio || !m.fecha_fin) return;
             if (parseDate(m.fecha_inicio) <= finMes && parseDate(m.fecha_fin) >= iniMes) {
-                html += '<div class="legend-item" onclick="selectMenu(\'' + m.id + '\')">' +
-                        '<span class="legend-swatch" style="background-color: ' + m.color + '"></span>' +
-                        '<span>' + fmtRange(m) + '</span></div>';
+                html += '<button type="button" class="legend-item" onclick="selectMenu(\'' + m.id + '\')">' +
+                        '<span class="legend-swatch" style="background-color: ' + m.color + '" aria-hidden="true"></span>' +
+                        '<span>' + fmtRange(m) + '</span></button>';
             }
         });
         $('#calendar-legend').html(html || '<p class="text-muted small">No hay menús este mes</p>');
@@ -191,9 +209,10 @@
 
     function selectMenu(id) {
         const m = allMenus.find(x => x.id === id);
-        if (m) updateButton(m);
+        if (m) updateStatus(m);
         loadMenuData(id);
         $('#calendar-card').hide();
+        $('#menuBtn').attr('aria-expanded', 'false');
     }
 
     function loadMenuData(menuName, despues) {
@@ -216,64 +235,55 @@
             });
     }
 
-    function getRandomColor() {
-        const colors = ['#f8d7da', '#d4edda', '#d1ecf1', '#fff3cd', '#e2e3e5', '#fce4ec', '#e8f5e9', '#e3f2fd', '#fff8e1', '#f3e5f5'];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }
-
     function displayMenuData(data) {
-        const menu = data.menu;
-        let html = '<div class="menu-card">';
+        const menu = data.menu || {};
+        let html = '<div class="menu-view">';
         html += '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">';
-        html += '<h2><i class="fas fa-calendar-alt"></i> ' + escapeHtml(menu.titulo) + '</h2>';
+        html += '<h2><i class="fas fa-calendar-alt"></i> ' + escapeHtml(menu.titulo || 'Menú') + '</h2>';
         html += '<div class="btn-group mt-2">';
         html += '<button class="btn btn-outline-primary btn-sm" onclick="editarMenu()"><i class="fas fa-pen"></i> Editar</button>';
         html += '<button class="btn btn-outline-danger btn-sm" onclick="eliminarMenu()"><i class="fas fa-trash"></i> Eliminar</button>';
         html += '</div>';
         html += '</div>';
-        
+
         // Lista de la compra
         html += '<details class="shopping-list">';
-        html += '<summary><h4 class="mb-0"><i class="fas fa-shopping-cart"></i> Lista de la compra</h4></summary>';
+        html += '<summary><span class="shopping-list-title"><i class="fas fa-shopping-cart"></i> Lista de la compra</span></summary>';
         if (data.despensa_base && data.despensa_base.length) {
             html += '<p class="text-muted small mb-2"><i class="fas fa-home"></i> Excluidos por despensa básica: ' +
                     data.despensa_base.map(escapeHtml).join(', ') + '</p>';
         }
-        
+
         html += '<div class="row">';
         html += '<div class="col-md-6">';
         html += '<div class="section-title"><i class="fas fa-check-circle"></i> Obligatorios</div>';
         html += buildShoppingListHtml(data.mandatory_ingredients);
         html += '</div>';
-        
+
         html += '<div class="col-md-6">';
         html += '<div class="section-title"><i class="fas fa-star"></i> Opcionales</div>';
         html += buildShoppingListHtml(data.optional_ingredients);
         html += '</div>';
         html += '</div>';
-        html += '</div>';
-        
+        html += '</details>';
+
         // Plan Semanal
-        html += '<h3><i class="fas fa-utensils"></i> Plan Semanal</h3>';
-        
-        menu.dias.forEach(function(d, index, array) {
-            let dayStyle = '';
-            if (index >= array.length - 3) {
-                dayStyle = ' style="background-color: ' + getRandomColor() + ';"';
-            }
-            html += '<div class="day-card"' + dayStyle + '>';
-            html += '<h4><i class="fas fa-calendar-day"></i> ' + d.dia + '</h4>';
-            html += renderMeal('Comida', d.comida, d.id_comida, data.recetas);
-            html += renderMeal('Cena', d.cena, d.id_cena, data.recetas);
+        html += '<h3><i class="fas fa-utensils"></i> Plan semanal</h3>';
+
+        (menu.dias || []).forEach(function(d) {
+            html += '<div class="day-card">';
+            html += '<h4><i class="fas fa-calendar-day"></i> ' + escapeHtml(d.dia || '') + '</h4>';
+            html += renderMeal('Comida', d.comida, d.id_comida, data.recetas || {});
+            html += renderMeal('Cena', d.cena, d.id_cena, data.recetas || {});
             html += '</div>';
         });
-        
+
         html += '</div>';
         $('#data-container').html(html);
     }
 
     function buildShoppingListHtml(ingredients) {
-        if (Object.keys(ingredients).length === 0) {
+        if (!ingredients || Object.keys(ingredients).length === 0) {
             return '<p class="text-muted"><i class="fas fa-info-circle"></i> Ninguno</p>';
         }
         let html = '<ul class="ingredient-list">';
@@ -281,54 +291,56 @@
             let qtyParts = [];
             for (let unit in ingredients[ingrediente]) {
                 const val = ingredients[ingrediente][unit];
-                const cleanVal = Math.round(val * 100) / 100;
-                qtyParts.push(cleanVal + (unit ? ' ' + unit : ''));
+                qtyParts.push(formatearNumero(val) + (unit ? ' ' + escapeHtml(unit) : ''));
             }
-            const qtyStr = qtyParts.length > 0 ? ` (${qtyParts.join(', ')})` : '';
-            html += '<li><strong>' + ingrediente + '</strong>' + qtyStr + '</li>';
+            const qtyStr = qtyParts.length > 0 ? ' (' + qtyParts.join(', ') + ')' : '';
+            html += '<li><strong>' + escapeHtml(ingrediente) + '</strong>' + qtyStr + '</li>';
         }
         html += '</ul>';
         return html;
     }
 
     function renderMeal(tipo, titulo, id, recetas) {
-        // Verificar si es receta de sobras
-        const esSobras = id === "sobras" || titulo.toLowerCase().includes('sobras');
-        
+        const nombre = String(titulo ?? '');
+        const esSobras = id === 'sobras' || nombre.toLowerCase().includes('sobras');
+
         if (esSobras) {
-            return '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> ' + tipo + ': ' + titulo + ' <span class="badge bg-secondary">(Recalentar)</span></div>';
+            return '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> ' + escapeHtml(tipo) + ': ' +
+                   escapeHtml(nombre) + ' <span class="badge bg-secondary">(Recalentar)</span></div>';
         }
-        
+
         if (!id || !recetas[id]) {
-            return '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> ' + tipo + ': ' + titulo + '</div>';
+            return '<div class="meal-title"><i class="fas fa-utensil-spoon"></i> ' + escapeHtml(tipo) + ': ' +
+                   escapeHtml(nombre) + '</div>';
         }
-        
+
         const receta = recetas[id];
         let ingHtml = '';
         if (receta.ingredientes) {
             for (let ingrediente in receta.ingredientes) {
                 const ingredienteData = receta.ingredientes[ingrediente];
-                let cantidad = "";
+                let cantidad = '';
                 let opcional = false;
-                if (typeof ingredienteData === "string" || typeof ingredienteData === "number") {
-                    cantidad = ingredienteData;
-                } else if (typeof ingredienteData === "object" && ingredienteData !== null) {
-                    cantidad = ingredienteData.cantidad || "";
-                    opcional = ingredienteData.opcional === true || ingredienteData.opcional === "yes" || ingredienteData.opcional === "sí";
+                if (typeof ingredienteData === 'string' || typeof ingredienteData === 'number') {
+                    cantidad = String(ingredienteData);
+                } else if (typeof ingredienteData === 'object' && ingredienteData !== null) {
+                    cantidad = ingredienteData.cantidad || '';
+                    opcional = ingredienteData.opcional === true || ingredienteData.opcional === 'yes' || ingredienteData.opcional === 'sí';
                 }
-                const qtyStr = cantidad ? `: ${cantidad}` : '';
+                const qtyStr = cantidad ? ': ' + escapeHtml(cantidad) : '';
                 const optStr = opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '';
                 const optionalClass = opcional ? ' optional-ingredient' : '';
-                ingHtml += '<li class="' + optionalClass + '"><strong>' + ingrediente + '</strong>' + qtyStr + optStr + '</li>';
+                ingHtml += '<li class="' + optionalClass + '"><strong>' + escapeHtml(ingrediente) + '</strong>' +
+                           qtyStr + optStr + '</li>';
             }
         }
 
-        let uteHtml = receta.utensilios ? receta.utensilios.map(u => '<li>' + u + '</li>').join('') : '';
-        let pasHtml = receta.pasos ? receta.pasos.map(p => '<li>' + p + '</li>').join('') : '';
+        const uteHtml = receta.utensilios ? receta.utensilios.map(u => '<li>' + escapeHtml(u) + '</li>').join('') : '';
+        const pasHtml = receta.pasos ? receta.pasos.map(p => '<li>' + escapeHtml(p) + '</li>').join('') : '';
 
-        return `\
+        return `
         <details class="recipe-card">
-            <summary><i class="fas fa-utensil-spoon"></i> <strong>` + tipo + `:</strong> ` + titulo + `</summary>
+            <summary><i class="fas fa-utensil-spoon"></i> <strong>` + escapeHtml(tipo) + `:</strong> ` + escapeHtml(nombre) + `</summary>
             <div class="sub-details">
                 <div class="row">
                     <div class="col-md-6">
@@ -375,27 +387,28 @@
     function editarMenu() {
         if (!lastMenuData || !currentMenuId) return;
         if (!catalogoRecetas.length) {
-            alert('El catálogo de recetas no ha cargado todavía, inténtalo en un momento.');
+            mostrarToast('El catálogo de recetas no ha cargado todavía. Inténtalo en un momento.', 'warning');
             return;
         }
         const menu = lastMenuData.menu;
-        let html = '<div class="menu-card">';
+        let html = '<div class="menu-view">';
         html += '<h2><i class="fas fa-pen"></i> Editar menú</h2>';
-        html += '<div class="mb-3"><label class="form-label">Título</label>' +
+        html += '<div class="mb-3"><label class="form-label" for="ed-titulo">Título</label>' +
                 '<input type="text" id="ed-titulo" class="form-control" value="' + escapeHtml(menu.titulo || '') + '"></div>';
-        menu.dias.forEach(function(d, i) {
+        (menu.dias || []).forEach(function(d, i) {
+            const dia = escapeHtml(d.dia || '');
             html += '<div class="day-card">';
-            html += '<h4><i class="fas fa-calendar-day"></i> ' + escapeHtml(d.dia) + '</h4>';
+            html += '<h4><i class="fas fa-calendar-day"></i> ' + dia + '</h4>';
             html += '<div class="row g-2">' +
-                    '<div class="col-md-6"><label class="form-label small">Comida</label>' +
-                    '<select class="form-control ed-comida" data-i="' + i + '">' + opcionesReceta(d.id_comida, d.comida) + '</select></div>' +
-                    '<div class="col-md-6"><label class="form-label small">Cena</label>' +
-                    '<select class="form-control ed-cena" data-i="' + i + '">' + opcionesReceta(d.id_cena, d.cena) + '</select></div>' +
+                    '<div class="col-md-6"><label class="form-label small" for="ed-comida-' + i + '">Comida</label>' +
+                    '<select class="form-control ed-comida" id="ed-comida-' + i + '" data-i="' + i + '">' + opcionesReceta(d.id_comida, d.comida) + '</select></div>' +
+                    '<div class="col-md-6"><label class="form-label small" for="ed-cena-' + i + '">Cena</label>' +
+                    '<select class="form-control ed-cena" id="ed-cena-' + i + '" data-i="' + i + '">' + opcionesReceta(d.id_cena, d.cena) + '</select></div>' +
                     '</div></div>';
         });
-        html += '<div id="ed-error" class="alert alert-danger" style="display:none"></div>';
+        html += '<div id="ed-error" class="alert alert-danger" style="display:none" role="alert"></div>';
         html += '<div class="d-flex gap-2 mt-3">' +
-                '<button class="btn btn-primary" onclick="guardarEdicionMenu()"><i class="fas fa-save"></i> Guardar cambios</button>' +
+                '<button class="btn btn-primary" id="ed-guardar" onclick="guardarEdicionMenu()"><i class="fas fa-save"></i> Guardar cambios</button>' +
                 '<button class="btn btn-secondary" onclick="displayMenuData(lastMenuData)">Cancelar</button>' +
                 '</div></div>';
         $('#data-container').html(html);
@@ -418,6 +431,7 @@
             };
         });
         $('#ed-error').hide();
+        $('#ed-guardar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
         $.ajax({
             url: '/menus/api/menu/' + currentMenuId,
             method: 'PUT',
@@ -428,10 +442,12 @@
             // Recargar menú (lista de la compra recalculada) y el calendario
             $.get('/menus/api/menus').done(function(data) { allMenus = data; if (fp) fp.render(); });
             loadMenuData(currentMenuId);
+            mostrarToast('Cambios guardados.', 'success');
         })
         .fail(function(xhr) {
             const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar el menú';
             $('#ed-error').text(msg).show();
+            $('#ed-guardar').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar cambios');
         });
     }
 
@@ -439,24 +455,28 @@
         if (!currentMenuId) return;
         const m = allMenus.find(x => x.id === currentMenuId);
         const titulo = m ? fmtRange(m) : currentMenuId;
-        if (!confirm('¿Eliminar el menú del ' + titulo + '?')) return;
-        $.ajax({ url: '/menus/api/menu/' + currentMenuId, method: 'DELETE' })
-            .done(function() {
-                currentMenuId = null;
-                lastMenuData = null;
-                $.get('/menus/api/menus').done(function(data) {
-                    allMenus = data;
-                    if (fp) fp.render();
-                    renderLegend();
-                    const current = findCurrentMenu();
-                    updateButton(current);
-                    if (current) loadMenuData(current.id);
-                    else $('#data-container').html('<div class="alert alert-info"><i class="fas fa-info-circle"></i> Ya no hay menús guardados.</div>');
+        pedirConfirmacion('¿Eliminar el menú del ' + titulo + '?', function() {
+            $.ajax({ url: '/menus/api/menu/' + currentMenuId, method: 'DELETE' })
+                .done(function() {
+                    currentMenuId = null;
+                    lastMenuData = null;
+                    $.get('/menus/api/menus').done(function(data) {
+                        allMenus = data;
+                        if (fp) fp.render();
+                        renderLegend();
+                        const current = findCurrentMenu();
+                        updateStatus(current);
+                        if (current) {
+                            loadMenuData(current.id);
+                        } else {
+                            $('#data-container').html('<div class="alert alert-info"><i class="fas fa-info-circle"></i> Ya no hay menús guardados.</div>');
+                        }
+                    });
+                })
+                .fail(function(xhr) {
+                    mostrarToast(((xhr.responseJSON || {}).error) || 'Error al eliminar el menú');
                 });
-            })
-            .fail(function(xhr) {
-                alert(((xhr.responseJSON || {}).error) || 'Error al eliminar el menú');
-            });
+        }, { textoBoton: 'Eliminar' });
     }
 
     function abrirModalMenuNuevo() {
@@ -473,6 +493,7 @@
     function crearMenuNuevo(event) {
         event.preventDefault();
         $('#mn-error').hide();
+        $('#mn-crear').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Creando...');
         $.ajax({
             url: '/menus/api/menu',
             method: 'POST',
@@ -485,13 +506,16 @@
                 allMenus = data;
                 if (fp) fp.render();
                 renderLegend();
-                updateButton(allMenus.find(x => x.id === datos.id));
+                updateStatus(allMenus.find(x => x.id === datos.id));
                 loadMenuData(datos.id, editarMenu);   // se abre directo en modo edición
             });
         })
         .fail(function(xhr) {
             const msg = (xhr.responseJSON && xhr.responseJSON.error) || 'Error al crear el menú';
             $('#mn-error').text(msg).show();
+        })
+        .always(function() {
+            $('#mn-crear').prop('disabled', false).html('<i class="fas fa-check"></i> Crear y editar');
         });
         return false;
     }
