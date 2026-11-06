@@ -75,6 +75,10 @@ summary:focus-visible {
     color: inherit;
 }
 
+.view-tab i {
+    margin-right: 0.4rem;
+}
+
 /* ---------- Navegación ---------- */
 .view-nav {
     display: flex;
