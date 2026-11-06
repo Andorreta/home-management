@@ -1,10 +1,18 @@
 {
 	auto_https disable_redirects
-	http_port 8080
-	https_port 8443
 }
 
-andorreta.hopto.org, 192.168.1.4, mini-server {
+# HTTP puro en 8080: iptables redirige el puerto 80 (acceso principal: http://192.168.1.4)
+:8080 {
+	handle /* {
+		reverse_proxy localhost:5000
+	}
+}
+
+# HTTPS con certificado interno (https://192.168.1.4:8443).
+# Para que Chrome no avise, confiar el CA local de Caddy en el dispositivo
+# (~/caddy/pki/authorities/local/root.crt). Futuro: certs reales vía Tailscale.
+192.168.1.4:8443, mini-server:8443 {
 	tls internal
 
 	# home-management es la única app: portal en /, menús en /menus, gastos en /gastos.
