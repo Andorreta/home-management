@@ -76,8 +76,10 @@ class GastosStore(Store):
         """El movimiento por id, o None."""
         raise NotImplementedError
 
-    def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None):
-        """Movimientos más recientes primero."""
+    def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None,
+                         categoria=None):
+        """Movimientos más recientes primero; filtros opcionales por fecha,
+        tipo y categoría."""
         raise NotImplementedError
 
     def get_resumen(self, meses=12):

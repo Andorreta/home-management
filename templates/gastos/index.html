@@ -28,18 +28,34 @@
             <div class="card-body">
                 <h2 id="grafico-titulo"><i class="fas fa-chart-column"></i> Último año</h2>
                 <div class="chart-wrap">
-                    <canvas id="grafico" role="img" aria-label="Gráfico de ingresos, gastos y balance acumulado"></canvas>
+                    <canvas id="grafico" role="img" aria-label="Gráfico de ingresos positivos, gastos negativos y balance acumulado"></canvas>
                 </div>
                 <p id="grafico-resumen" class="visually-hidden"></p>
             </div>
         </div>
     </div>
 
-    <!-- Últimos movimientos -->
+    <!-- Movimientos de un mes, filtrables por categoría -->
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                <h2><i class="fas fa-receipt"></i> Últimos movimientos</h2>
+                <h2 id="movimientos-titulo"><i class="fas fa-receipt"></i> Movimientos del mes</h2>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-12 col-sm-5 col-md-4">
+                        <label for="mov-mes" class="form-label">Mes</label>
+                        <input type="month" id="mov-mes" class="form-control">
+                    </div>
+                    <div class="col-12 col-sm-7 col-md-5">
+                        <label for="filtro-categoria" class="form-label">Categoría</label>
+                        <select id="filtro-categoria" class="form-select">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="resumen-movimientos" class="d-flex flex-wrap gap-3 small mb-2" aria-live="polite"></div>
+
                 <table class="table table-sm tabla-cards" id="movimientos">
                     <thead>
                         <tr>
@@ -53,7 +69,7 @@
                     <tbody></tbody>
                 </table>
                 <p id="sin-movimientos" class="text-muted" style="display:none">
-                    Aún no hay movimientos. Añade el primero con el botón «Nuevo movimiento».
+                    No hay movimientos para este mes.
                 </p>
             </div>
         </div>
@@ -178,6 +194,59 @@
         return meses === 12 ? abrev + ' ' + mes.slice(2, 4) : abrev + ' ' + mes.slice(0, 4);
     }
 
+    // --- Mes seleccionado y filtros de movimientos ---
+
+    function mesActualISO() {
+        const d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
+    function rangoMes(mes) {
+        const [anio, numeroMes] = mes.split('-').map(Number);
+        const ultimoDia = new Date(anio, numeroMes, 0).getDate();
+        return {
+            desde: mes + '-01',
+            hasta: mes + '-' + String(ultimoDia).padStart(2, '0')
+        };
+    }
+
+    function cargarCategorias() {
+        $.get('/gastos/api/categorias')
+            .done(function (cats) {
+                const todos = Array.from(new Set((cats.gasto || []).concat(cats.ingreso || [])))
+                    .sort((a, b) => a.localeCompare(b, 'es'));
+                $('#categorias').html(todos.map(c => '<option value="' + escapeHtml(c) + '">').join(''));
+
+                const actual = $('#filtro-categoria').val();
+                const opciones = todos.slice();
+                if (actual && !opciones.includes(actual)) opciones.push(actual);
+                $('#filtro-categoria').html(
+                    '<option value="">Todas las categorías</option>' +
+                    opciones.map(c => '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>').join('')
+                );
+                if (actual) $('#filtro-categoria').val(actual);
+            })
+            .fail(function () { /* las categorías son una ayuda, no un requisito */ });
+    }
+
+    function cargarMovimientos() {
+        let mes = $('#mov-mes').val();
+        if (!mes) {
+            mes = mesActualISO();
+            $('#mov-mes').val(mes);
+        }
+        const rango = rangoMes(mes);
+        const params = new URLSearchParams({
+            desde: rango.desde,
+            hasta: rango.hasta,
+            limit: '500'
+        });
+        const categoria = $('#filtro-categoria').val();
+        if (categoria) params.set('categoria', categoria);
+        $.get('/gastos/api/movimientos?' + params.toString(), pintarMovimientos)
+            .fail(function () { avisoGastos('No se pudieron cargar los movimientos del mes.'); });
+    }
+
     // --- Carga de datos y refresco completo ---
 
     function cargarTodo() {
@@ -189,15 +258,8 @@
             })
             .fail(function () { avisoGastos('No se pudo cargar el resumen mensual.'); });
 
-        $.get('/gastos/api/movimientos?limit=50', pintarMovimientos)
-            .fail(function () { avisoGastos('No se pudieron cargar los movimientos.'); });
-
-        $.get('/gastos/api/categorias')
-            .done(function (cats) {
-                const todos = (cats.gasto || []).concat(cats.ingreso || []);
-                $('#categorias').html(todos.map(c => '<option value="' + escapeHtml(c) + '">').join(''));
-            })
-            .fail(function () { /* las categorías son una ayuda, no un requisito */ });
+        cargarCategorias();
+        cargarMovimientos();
     }
 
     function pintarGrafico(datos) {
@@ -221,12 +283,12 @@
 
         const datasets = [
             { type: 'bar', label: 'Ingresos', data: resumen.map(r => r.ingresos), backgroundColor: '#59a14f' },
-            { type: 'bar', label: 'Gastos', data: resumen.map(r => r.gastos), backgroundColor: '#e15759' }
+            { type: 'bar', label: 'Gastos', data: resumen.map(r => -(r.gastos || 0)), backgroundColor: '#e15759' }
         ];
         if (meses < 12 && datos.anterior) {
             datasets.push(
                 { type: 'bar', label: 'Ingresos año anterior', data: datos.anterior.map(r => r.ingresos), backgroundColor: '#59a14f66' },
-                { type: 'bar', label: 'Gastos año anterior', data: datos.anterior.map(r => r.gastos), backgroundColor: '#e1575966' }
+                { type: 'bar', label: 'Gastos año anterior', data: datos.anterior.map(r => -(r.gastos || 0)), backgroundColor: '#e1575966' }
             );
         }
         datasets.push({
@@ -294,7 +356,35 @@
     }
 
     function pintarMovimientos(movs) {
+        const mes = $('#mov-mes').val();
+        const categoria = $('#filtro-categoria').val();
+        const tituloMes = mes ? nombreMes(mes) : 'mes seleccionado';
+        $('#movimientos-titulo').html(
+            '<i class="fas fa-receipt"></i> Movimientos de ' + escapeHtml(tituloMes) +
+            (categoria ? ' · ' + escapeHtml(categoria) : '')
+        );
+
         $('#sin-movimientos').toggle(!movs.length);
+        if (!movs.length) {
+            $('#resumen-movimientos').empty();
+            $('#movimientos tbody').empty();
+            const donde = categoria ? ' en la categoría «' + categoria + '»' : '';
+            $('#sin-movimientos').text('No hay movimientos' + donde + ' en ' + tituloMes + '.');
+            return;
+        }
+
+        const totalGastos = movs.reduce((s, m) => s + (m.tipo === 'gasto' ? (m.importe || 0) : 0), 0);
+        const totalIngresos = movs.reduce((s, m) => s + (m.tipo === 'ingreso' ? (m.importe || 0) : 0), 0);
+        const balance = totalIngresos - totalGastos;
+        const claseBalance = balance < 0 ? 'text-danger' : 'text-success';
+
+        $('#resumen-movimientos').html(
+            '<span><strong>' + movs.length + '</strong> ' + (movs.length === 1 ? 'movimiento' : 'movimientos') + '</span>' +
+            '<span class="text-danger"><i class="fas fa-arrow-down"></i> Gastos: <strong>' + fmtEUR.format(totalGastos) + '</strong></span>' +
+            '<span class="text-success"><i class="fas fa-arrow-up"></i> Ingresos: <strong>' + fmtEUR.format(totalIngresos) + '</strong></span>' +
+            '<span class="' + claseBalance + '">Balance: <strong>' + fmtEUR.format(balance) + '</strong></span>'
+        );
+
         const filas = movs.map(m => {
             const signo = m.tipo === 'gasto' ? '-' : '+';
             const color = m.tipo === 'gasto' ? '#e15759' : '#59a14f';
@@ -407,9 +497,11 @@
 
         $('#mov-error').hide();
         $('#mov-guardar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
-        peticion.done(function () {
+        peticion.done(function (guardado) {
             cerrarModal();
             limpiarFormulario();
+            // Mostrar el mes del movimiento guardado (también al editar una fecha).
+            if (guardado && guardado.fecha) $('#mov-mes').val(guardado.fecha.slice(0, 7));
             cargarTodo();
             mostrarToast('Movimiento guardado.', 'success');
         }).fail(function (xhr) {
@@ -470,6 +562,9 @@
 
     $(function () {
         $('#mov-fecha').val(hoyISO());
+        $('#mov-mes').val(mesActualISO());
+        $('#mov-mes').on('change', cargarMovimientos);
+        $('#filtro-categoria').on('change', cargarMovimientos);
         $('#selector-periodo button').on('click', function () {
             $('#selector-periodo button').removeClass('active').attr('aria-pressed', 'false');
             $(this).addClass('active').attr('aria-pressed', 'true');

@@ -125,7 +125,8 @@ class SqliteStore(GastosStore):
             row = conn.execute('SELECT * FROM movimientos WHERE id = ?', (mov_id,)).fetchone()
         return _row_to_dict(row) if row else None
 
-    def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None):
+    def list_movimientos(self, limit=50, desde=None, hasta=None, tipo=None,
+                         categoria=None):
         sql = 'SELECT * FROM movimientos WHERE 1=1'
         params = []
         if desde:
@@ -137,6 +138,9 @@ class SqliteStore(GastosStore):
         if tipo:
             sql += ' AND tipo = ?'
             params.append(tipo)
+        if categoria:
+            sql += ' AND categoria = ?'
+            params.append(categoria)
         sql += ' ORDER BY fecha DESC, id DESC LIMIT ?'
         params.append(int(limit))
         with self._conn() as conn:

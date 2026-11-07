@@ -42,6 +42,7 @@ def api_movimientos():
         desde=request.args.get('desde') or None,
         hasta=request.args.get('hasta') or None,
         tipo=request.args.get('tipo') or None,
+        categoria=request.args.get('categoria') or None,
     )
     return jsonify(movimientos)
 

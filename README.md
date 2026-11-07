@@ -21,6 +21,11 @@ Termux: gunicorn + Caddy) y también en local.
   feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt.
   La generación es **asíncrona**: el botón crea un trabajo en segundo plano y la
   UI consulta su estado, así una IA lenta no bloquea la página ni provoca timeouts.
+- **Gastos por mes y categoría**: la vista de gastos muestra todos los
+  movimientos del mes elegido (gastos e ingresos), permite filtrar por categoría
+  y resume gastos, ingresos y balance del filtro. La gráfica representa los
+  ingresos en positivo y los gastos en negativo, con el balance acumulado como
+  línea.
 - Interfaz responsive con Flask + Bootstrap
 - Datos en SQLite (`data/menus.db` y `data/expenses.db`) con factory de almacenes;
   los menús caen automáticamente al respaldo JSON si la BD está sin migrar
@@ -88,6 +93,8 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 ## URLs
 
 - `/` portal · `/menus` · `/menus/recetas` · `/menus/generar` · `/gastos`
+- Gastos: `GET /gastos/api/movimientos?desde=AAAA-MM-DD&hasta=AAAA-MM-DD&categoria=Casa&tipo=gasto&limit=500`,
+  más `/gastos/api/resumen`, `/gastos/api/comparativa`, `/gastos/api/categorias`.
 - API: `/menus/api/menus`, `/menus/api/menu/<id>`, `/menus/api/recetas`,
   `/menus/api/receta/<id>`, `/menus/api/preferencias`,
   `/menus/api/ingredientes?q=<texto>` (sugerencias canónicas y alias)
