@@ -3,11 +3,27 @@ Generación de menús con el LLM (Strata) y fusión con los menús existentes.
 Recibe el store por parámetro: no sabe si los datos viven en JSON o en SQLite.
 """
 
-import urllib.error
 from datetime import datetime, timedelta
 
 from . import llm
 from . import menus_helpers as helpers
+
+
+def parse_fechas(fecha_inicio, fecha_fin):
+    """
+    Valida el rango de fechas y devuelve (d_ini, d_fin, error).
+    Se usa tanto para rechazar una petición inválida al instante como dentro
+    de la generación en segundo plano.
+    """
+    try:
+        d_ini = datetime.strptime(str(fecha_inicio or ''), '%Y-%m-%d')
+        d_fin = datetime.strptime(str(fecha_fin or ''), '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return None, None, 'Fechas inválidas (formato AAAA-MM-DD)'
+    n_dias = (d_fin - d_ini).days + 1
+    if not (1 <= n_dias <= 14):
+        return None, None, 'El rango debe ser de 1 a 14 días'
+    return d_ini, d_fin, None
 
 
 def generar_menu(store, cfg, fecha_inicio, fecha_fin, feedback=''):
@@ -17,14 +33,10 @@ def generar_menu(store, cfg, fecha_inicio, fecha_fin, feedback=''):
     contexto del momento ("esta semana estoy flojo, hazlo simple").
     Devuelve (respuesta_dict, codigo_http).
     """
-    try:
-        d_ini = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-        d_fin = datetime.strptime(fecha_fin, '%Y-%m-%d')
-    except ValueError:
-        return {'error': 'Fechas inválidas (formato AAAA-MM-DD)'}, 400
+    d_ini, d_fin, error = parse_fechas(fecha_inicio, fecha_fin)
+    if error:
+        return {'error': error}, 400
     n_dias = (d_fin - d_ini).days + 1
-    if not (1 <= n_dias <= 14):
-        return {'error': 'El rango debe ser de 1 a 14 días'}, 400
 
     if not cfg['api_key'] or not cfg['model']:
         return {'error': 'Falta la configuración del LLM (config_local.json: strata_api_key/strata_model)'}, 500
@@ -95,9 +107,9 @@ DEVUELVE EXACTAMENTE este JSON:
     error_anterior = None
     for intento in range(2):
         try:
-            contenido = llm.call_llm(cfg, messages)
+            contenido = llm.call_llm(cfg, messages, max_tokens=cfg.get('max_tokens', 2500))
             generado = llm.parse_llm_json(contenido)
-        except (urllib.error.URLError, urllib.error.HTTPError) as e:
+        except OSError as e:
             return {'error': f'No se pudo contactar con el LLM ({cfg["url"]}): {e}'}, 502
         except ValueError as e:
             error_anterior = f'JSON inválido: {e}'

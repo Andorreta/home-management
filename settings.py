@@ -29,6 +29,10 @@ class Config(object):
     STRATA_MODEL = os.environ.get('STRATA_MODEL', '')
     # Modelo para visión (fotos de tickets); si va vacío, se usa STRATA_MODEL
     STRATA_VISION_MODEL = os.environ.get('STRATA_VISION_MODEL', '')
+    # Una IA potente puede tardar varios minutos; la generación ya es en
+    # segundo plano, así que aquí solo limita cuánto puede quedarse colgada.
+    STRATA_TIMEOUT = int(os.environ.get('STRATA_TIMEOUT', '1800'))
+    STRATA_MAX_TOKENS = int(os.environ.get('STRATA_MAX_TOKENS', '4000'))
 
     SECRET_KEY = os.environ.get('HM_SECRET_KEY', 'home-management-dev')
 
@@ -55,6 +59,8 @@ def load_llm_config(config_class):
         'api_key': config_class.STRATA_API_KEY,
         'model': config_class.STRATA_MODEL,
         'vision_model': config_class.STRATA_VISION_MODEL,
+        'timeout': config_class.STRATA_TIMEOUT,
+        'max_tokens': config_class.STRATA_MAX_TOKENS,
     }
     path = os.path.join(BASE_DIR, 'config_local.json')
     if os.path.exists(path):
@@ -65,6 +71,8 @@ def load_llm_config(config_class):
             cfg['api_key'] = local.get('strata_api_key', cfg['api_key'])
             cfg['model'] = local.get('strata_model', cfg['model'])
             cfg['vision_model'] = local.get('strata_vision_model', cfg['vision_model'])
+            cfg['timeout'] = int(local.get('strata_timeout', cfg['timeout']))
+            cfg['max_tokens'] = int(local.get('strata_max_tokens', cfg['max_tokens']))
         except Exception as e:
             print(f"Error leyendo config_local.json: {e}")
     if not cfg['vision_model']:

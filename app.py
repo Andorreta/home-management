@@ -12,6 +12,7 @@ import os
 from flask import Flask, redirect, request
 
 from models.factory import create_gastos_store, create_store
+from services.generation_jobs import GeneracionJobs
 from settings import get_config, load_llm_config
 
 
@@ -33,6 +34,9 @@ def create_app(config_class=None):
 
     # Configuración del LLM (Strata) compartida por los blueprints
     app.llm_config = load_llm_config(config_class)
+
+    # Trabajos de generación en segundo plano (persisten en data/generacion/)
+    app.generation_jobs = GeneracionJobs(app.config['DATA_DIR'], logger=app.logger)
 
     # Crear directorios de datos si no existen
     os.makedirs(os.path.join(app.config['DATA_DIR'], 'menus'), exist_ok=True)

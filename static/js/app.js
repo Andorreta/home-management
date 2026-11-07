@@ -78,8 +78,36 @@
         toast.show();
     }
 
+    // Flag global: muestra si hay un menú generándose en segundo plano.
+    function actualizarFlagGeneracion() {
+        const contenedor = document.getElementById('generacion-global');
+        if (!contenedor || typeof window.jQuery === 'undefined') return;
+
+        window.jQuery.get('/menus/api/generar/activos', function (data) {
+            const activos = (data && data.activos) || [];
+            if (activos.length) {
+                const texto = contenedor.querySelector('.generacion-global-texto');
+                if (texto) {
+                    texto.textContent = activos.length === 1
+                        ? 'Generando menú en segundo plano…'
+                        : 'Generando ' + activos.length + ' menús en segundo plano…';
+                }
+                contenedor.hidden = false;
+            } else {
+                contenedor.hidden = true;
+            }
+        }, 'json');
+    }
+
     window.pedirConfirmacion = pedirConfirmacion;
     window.mostrarToast = mostrarToast;
     window.formatearFecha = formatearFecha;
     window.formatearNumero = formatearNumero;
+    window.actualizarFlagGeneracion = actualizarFlagGeneracion;
+
+    // Solo se consulta si existe el flag en la página (todas las páginas lo tienen).
+    if (document.getElementById('generacion-global')) {
+        actualizarFlagGeneracion();
+        setInterval(actualizarFlagGeneracion, 15000);
+    }
 })();

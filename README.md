@@ -14,7 +14,9 @@ Termux: gunicorn + Caddy) y también en local.
 - CRUD de recetas (crear/editar/borrar con aviso si están en menús) y editor de
   menús (cambar plato por día, crear menús vacíos, borrar semanas)
 - Generación de menús con LLM local (Strata, API compatible OpenAI) y campo de
-  feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt
+  feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt.
+  La generación es **asíncrona**: el botón crea un trabajo en segundo plano y la
+  UI consulta su estado, así una IA lenta no bloquea la página ni provoca timeouts.
 - Interfaz responsive con Flask + Bootstrap
 - Datos en SQLite (`data/menus.db` y `data/expenses.db`) con factory de almacenes;
   los menús caen automáticamente al respaldo JSON si la BD está sin migrar
@@ -39,6 +41,7 @@ Termux: gunicorn + Caddy) y también en local.
 │   └── sqlite_menus_store.py  # Menús/recetas: documental en data/menus.db
 ├── services/
 │   ├── generation.py       # Generación de menús LLM + fusión con existentes
+│   ├── generation_jobs.py  # Trabajos asíncronos persistidos en data/generacion/
 │   ├── llm.py              # Cliente Strata/OpenAI-compatible (texto y visión)
 │   ├── menus_helpers.py    # Dominio: fechas, ingredientes, validación CRUD
 │   └── tickets.py          # Análisis de fotos de tickets con visión
@@ -66,11 +69,13 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 
 ## Configuración
 
-- `config_local.json` (gitignoreado): `strata_url`, `strata_api_key`, `strata_model`
-  para la generación de menús con LLM.
+- `config_local.json` (gitignoreado): `strata_url`, `strata_api_key`, `strata_model`,
+  y opcionales `strata_timeout` (segundos, 1800 por defecto) y `strata_max_tokens`
+  (4000 por defecto) para la generación de menús con LLM.
 - Variables de entorno: `HM_CONFIG` (`LocalConfig`/`ServerConfig`), `HM_STORE`
   (`sqlite` por defecto con fallback a `json`, o `json`), `HM_MENUS_DB`, `HM_GASTOS_DB`,
-  `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`, `STRATA_VISION_MODEL`.
+  `STRATA_URL`, `STRATA_API_KEY`, `STRATA_MODEL`, `STRATA_VISION_MODEL`,
+  `STRATA_TIMEOUT`, `STRATA_MAX_TOKENS`.
 - Tras clonar en una máquina nueva: `python migrate_menus_to_sqlite.py` para volcar
   los JSON de `data/` a `data/menus.db` (sin borrar los JSON; son el respaldo).
 
@@ -78,7 +83,11 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 
 - `/` portal · `/menus` · `/menus/recetas` · `/menus/generar` · `/gastos`
 - API: `/menus/api/menus`, `/menus/api/menu/<id>`, `/menus/api/recetas`,
-  `/menus/api/receta/<id>`, `/menus/api/preferencias`, `/menus/api/generar` (POST)
+  `/menus/api/receta/<id>`, `/menus/api/preferencias`
+- Generación asíncrona: `POST /menus/api/generar` responde `202` con un `job`;
+  `GET /menus/api/generar/<job_id>` devuelve su estado (`pendiente`, `en_proceso`,
+  `terminado` o `error`) y `GET /menus/api/generar/activos` lista los trabajos
+  en curso para el flag global de la UI.
 - Las URLs antiguas (`/home-cooking/*`, `/recetas`, `/generar`, `/api/*`)
   se redirigen automáticamente a su equivalents en `/menus`.
 

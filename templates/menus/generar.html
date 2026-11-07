@@ -57,7 +57,7 @@
             <p class="text-muted small">
                 <i class="fas fa-info-circle"></i>
                 La IA elige entre las recetas guardadas respetando tus preferencias y evitando las recetas de las últimas semanas.
-                Puede tardar uno o dos minutos.
+                La generación se hace en segundo plano: puedes seguir navegando o cerrar esta página; el menú se guardará al terminar.
             </p>
 
             <div id="generar-estado" role="status" aria-live="polite"></div>
@@ -148,6 +148,9 @@
         $.get('/menus/api/recetas').done(function(data) {
             (data || []).forEach(function(r) { recetaNombres[r.id] = r.nombre; });
         });
+
+        // Si ya hay una generación en curso (p. ej. tras recargar), la retoma.
+        cargarEstadoGeneracion();
     });
 
     function togglePreferencias() {
@@ -227,11 +230,101 @@
         });
     }
 
+    let jobEnCurso = null;
+    let pollTimer = null;
+
     function setEstado(html) {
         $('#generar-estado').html(html);
     }
 
+    function setGenerando(activo) {
+        const btn = $('#generarBtn');
+        if (activo) {
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Generando en segundo plano...');
+        } else {
+            btn.prop('disabled', false).html('<i class="fas fa-wand-magic-sparkles"></i> Generar menú');
+        }
+    }
+
+    function pararPolling() {
+        if (pollTimer) {
+            clearTimeout(pollTimer);
+            pollTimer = null;
+        }
+    }
+
+    function segundosDesde(iso) {
+        const t = Date.parse(iso || '');
+        if (isNaN(t)) return null;
+        return Math.max(0, Math.floor((Date.now() - t) / 1000));
+    }
+
+    function duracionTexto(seg) {
+        if (seg < 60) return seg + ' s';
+        if (seg < 3600) return Math.floor(seg / 60) + ' min ' + (seg % 60) + ' s';
+        return Math.floor(seg / 3600) + ' h ' + Math.floor((seg % 3600) / 60) + ' min';
+    }
+
+    function bannerGenerando(job) {
+        const seg = segundosDesde(job.creado);
+        const tiempo = seg == null ? '' : ' · ' + duracionTexto(seg);
+        const inicio = formatearFecha(job.fecha_inicio);
+        const fin = formatearFecha(job.fecha_fin);
+        return '<div class="alert alert-info">' +
+            '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+            '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>' +
+            '<strong>Generando menú en segundo plano…</strong>' +
+            '<span class="small text-muted">' + escapeHtml(tiempo) + '</span>' +
+            '</div>' +
+            '<div class="small mt-1">La IA está trabajando. Puedes seguir usando la aplicación o cerrar esta página: el menú se guardará al terminar.</div>' +
+            '<div class="small text-muted mt-1">' + escapeHtml(inicio) + ' → ' + escapeHtml(fin) + '</div>' +
+            '</div>';
+    }
+
+    function consultarJob(jobId) {
+        if (!jobId) return;
+        $.ajax({
+            url: '/menus/api/generar/' + encodeURIComponent(jobId),
+            method: 'GET',
+            timeout: 15000
+        })
+        .done(function(job) {
+            if (job.estado === 'terminado') {
+                pararPolling();
+                jobEnCurso = null;
+                setGenerando(false);
+                setEstado('');
+                renderResultado(job.resultado || {});
+                refrescarMenus();
+                if (window.actualizarFlagGeneracion) window.actualizarFlagGeneracion();
+            } else if (job.estado === 'error') {
+                pararPolling();
+                jobEnCurso = null;
+                setGenerando(false);
+                setEstado('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> ' +
+                    escapeHtml(job.error || 'Error al generar el menú.') + '</div>');
+                if (window.actualizarFlagGeneracion) window.actualizarFlagGeneracion();
+            } else {
+                setEstado(bannerGenerando(job));
+                pollTimer = setTimeout(function() { consultarJob(jobId); }, 3000);
+            }
+        })
+        .fail(function(xhr) {
+            if (xhr.status === 404) {
+                pararPolling();
+                jobEnCurso = null;
+                setGenerando(false);
+                setEstado('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> ' +
+                    'La generación ya no existe en el servidor. Vuelve a intentarlo.</div>');
+            } else {
+                // Fallo puntual de red: reintenta sin perder el trabajo.
+                pollTimer = setTimeout(function() { consultarJob(jobId); }, 5000);
+            }
+        });
+    }
+
     function generarMenu() {
+        if (jobEnCurso) return;
         const ini = isoDeFecha($('#fecha-inicio').val());
         const fin = isoDeFecha($('#fecha-fin').val());
         if (!ini || !fin) {
@@ -242,28 +335,57 @@
             setEstado('<div class="alert alert-warning"><i class="fas fa-exclamation-circle"></i> La fecha de fin no puede ser anterior a la de inicio.</div>');
             return;
         }
-        $('#generarBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Generando...');
+
+        pararPolling();
         $('#generar-resultado').empty();
-        setEstado('<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Consultando la IA... puede tardar uno o dos minutos.</div>');
+        setGenerando(true);
+        setEstado('<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Enviando la solicitud a la IA...</div>');
 
         $.ajax({
             url: '/menus/api/generar',
             method: 'POST',
             contentType: 'application/json',
-            timeout: 300000,
+            timeout: 30000,
             data: JSON.stringify({ fecha_inicio: ini, fecha_fin: fin, feedback: $('#feedback').val().trim() })
         })
         .done(function(data) {
-            setEstado('');
-            renderResultado(data);
+            const job = data.job;
+            if (!job || !job.id) {
+                setGenerando(false);
+                setEstado('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> El servidor no devolvió un trabajo de generación.</div>');
+                return;
+            }
+            jobEnCurso = job;
+            setEstado(bannerGenerando(job));
+            if (window.actualizarFlagGeneracion) window.actualizarFlagGeneracion();
+            consultarJob(job.id);
         })
         .fail(function(xhr) {
+            setGenerando(false);
             let msg = 'Error al generar el menú.';
             if (xhr.responseJSON && xhr.responseJSON.error) msg = xhr.responseJSON.error;
             setEstado('<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(msg) + '</div>');
-        })
-        .always(function() {
-            $('#generarBtn').prop('disabled', false).html('<i class="fas fa-wand-magic-sparkles"></i> Generar menú');
+        });
+    }
+
+    function cargarEstadoGeneracion() {
+        $.get('/menus/api/generar/activos')
+            .done(function(data) {
+                const activos = (data && data.activos) || [];
+                if (!activos.length) return;
+                jobEnCurso = activos[0];
+                setGenerando(true);
+                setEstado(bannerGenerando(jobEnCurso));
+                consultarJob(jobEnCurso.id);
+            });
+    }
+
+    function refrescarMenus() {
+        $.get('/menus/api/menus').done(function(data) {
+            allMenus = data || [];
+            // Redibuja los calendarios para colorear los días del menú nuevo.
+            if (fpInicio && typeof fpInicio.redraw === 'function') fpInicio.redraw();
+            if (fpFin && typeof fpFin.redraw === 'function') fpFin.redraw();
         });
     }
 

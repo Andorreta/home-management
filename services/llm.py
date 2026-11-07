@@ -9,8 +9,10 @@ import urllib.error
 import urllib.request
 
 
-def call_llm(cfg, messages, max_tokens=2500, temperature=0.8):
+def call_llm(cfg, messages, max_tokens=None, temperature=0.8):
     """Llamada a /v1/chat/completions (Strata/llama.cpp). Devuelve el content del asistente."""
+    if max_tokens is None:
+        max_tokens = cfg.get('max_tokens', 2500)
     body = json.dumps({
         'model': cfg['model'],
         'messages': messages,
@@ -22,7 +24,8 @@ def call_llm(cfg, messages, max_tokens=2500, temperature=0.8):
         data=body,
         headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {cfg['api_key']}"},
     )
-    with urllib.request.urlopen(req, timeout=240) as resp:
+    # El timeout es configurable: una IA potente puede tardar varios minutos.
+    with urllib.request.urlopen(req, timeout=cfg.get('timeout', 240)) as resp:
         data = json.load(resp)
     choice = (data.get('choices') or [{}])[0]
     content = (choice.get('message') or {}).get('content')
@@ -49,7 +52,7 @@ def call_llm_vision(cfg, prompt, image_bytes, mime='image/jpeg', max_tokens=700)
         data=body,
         headers={'Content-Type': 'application/json', 'Authorization': f"Bearer {cfg['api_key']}"},
     )
-    with urllib.request.urlopen(req, timeout=240) as resp:
+    with urllib.request.urlopen(req, timeout=cfg.get('timeout', 240)) as resp:
         data = json.load(resp)
     choice = (data.get('choices') or [{}])[0]
     content = (choice.get('message') or {}).get('content')

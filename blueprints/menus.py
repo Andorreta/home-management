@@ -141,15 +141,39 @@ def api_recetas():
 
 @bp.route('/api/generar', methods=['POST'])
 def api_generar():
+    """Lanza la generación en segundo plano y responde 202 al instante."""
     datos = request.get_json(silent=True) or {}
-    respuesta, status = generation.generar_menu(
-        store(),
-        current_app.llm_config,
-        datos.get('fecha_inicio', ''),
-        datos.get('fecha_fin', ''),
-        feedback=datos.get('feedback', ''),
-    )
-    return jsonify(respuesta), status
+    fecha_inicio = str(datos.get('fecha_inicio') or '')
+    fecha_fin = str(datos.get('fecha_fin') or '')
+    feedback = str(datos.get('feedback') or '')
+
+    _, _, error = generation.parse_fechas(fecha_inicio, fecha_fin)
+    if error:
+        return jsonify({'error': error}), 400
+
+    cfg = current_app.llm_config
+    if not cfg.get('api_key') or not cfg.get('model'):
+        return jsonify({
+            'error': 'Falta la configuración del LLM (config_local.json: strata_api_key/strata_model)'
+        }), 500
+
+    job = current_app.generation_jobs.crear(
+        store(), cfg, fecha_inicio, fecha_fin, feedback=feedback)
+    return jsonify({'ok': True, 'job': job}), 202
+
+
+@bp.route('/api/generar/activos')
+def api_generar_activos():
+    """Trabajos pendientes o en proceso; la UI los usa como flag global."""
+    return jsonify({'activos': current_app.generation_jobs.activos()})
+
+
+@bp.route('/api/generar/<job_id>')
+def api_generar_estado(job_id):
+    job = current_app.generation_jobs.obtener(job_id)
+    if not job:
+        return jsonify({'error': 'Trabajo de generación no encontrado'}), 404
+    return jsonify(job)
 
 
 # --- CRUD de recetas (fase 5) ---

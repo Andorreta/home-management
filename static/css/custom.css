@@ -116,6 +116,36 @@ summary:focus-visible {
     outline-offset: 2px;
 }
 
+/* Flag global de generación en segundo plano */
+.generacion-global {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 50px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.generacion-global[hidden] {
+    display: none;
+}
+
+.generacion-global-link {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.generacion-global-link:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
 /* ---------- Tarjetas y contenedores ---------- */
 .card {
     border-radius: 10px;
