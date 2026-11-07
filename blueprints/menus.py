@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from services import generation
+from services import ingredientes
 from services import menus_helpers as helpers
 
 bp = Blueprint('menus', __name__, url_prefix='/menus')
@@ -137,6 +138,18 @@ def api_recetas():
     ]
     resultado.sort(key=lambda r: r['nombre'].lower())
     return jsonify(resultado)
+
+
+@bp.route('/api/ingredientes')
+def api_ingredientes():
+    """Sugerencias de ingredientes canónicos para el autocompletado."""
+    consulta = request.args.get('q', '')
+    limite = request.args.get('limite', 10, type=int)
+    limite = max(1, min(limite or 10, 20))
+    return jsonify({
+        'sugerencias': ingredientes.sugerencias(
+            store().load_recetas(), consulta, limite),
+    })
 
 
 @bp.route('/api/generar', methods=['POST'])

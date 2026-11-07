@@ -13,6 +13,10 @@ Termux: gunicorn + Caddy) y también en local.
 - Menús semanales con recetas, lista de la compra agrupada y visor de recetas
 - CRUD de recetas (crear/editar/borrar con aviso si están en menús) y editor de
   menús (cambar plato por día, crear menús vacíos, borrar semanas)
+- **Ingredientes estandarizados**: al crear o editar una receta se sugieren
+  nombres canónicos y se unifican alias (`atún en lata` → `atún en conserva`,
+  `pimiento` → `pimiento rojo`, `huevos` → `huevo`). La lista de la compra
+  agrupa los alias aunque las recetas antiguas los usen.
 - Generación de menús con LLM local (Strata, API compatible OpenAI) y campo de
   feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt.
   La generación es **asíncrona**: el botón crea un trabajo en segundo plano y la
@@ -43,6 +47,8 @@ Termux: gunicorn + Caddy) y también en local.
 │   ├── generation.py       # Generación de menús LLM + fusión con existentes
 │   ├── generation_jobs.py  # Trabajos asíncronos persistidos en data/generacion/
 │   ├── llm.py              # Cliente Strata/OpenAI-compatible (texto y visión)
+│   ├── ingredientes.py     # Estandarización, alias y sugerencias de ingredientes
+│   ├── ingredientes_catalogo.json  # Catálogo canónico + alias (editable)
 │   ├── menus_helpers.py    # Dominio: fechas, ingredientes, validación CRUD
 │   └── tickets.py          # Análisis de fotos de tickets con visión
 ├── templates/              # base.html compartido + portal + menus/ + gastos/
@@ -83,7 +89,8 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 
 - `/` portal · `/menus` · `/menus/recetas` · `/menus/generar` · `/gastos`
 - API: `/menus/api/menus`, `/menus/api/menu/<id>`, `/menus/api/recetas`,
-  `/menus/api/receta/<id>`, `/menus/api/preferencias`
+  `/menus/api/receta/<id>`, `/menus/api/preferencias`,
+  `/menus/api/ingredientes?q=<texto>` (sugerencias canónicas y alias)
 - Generación asíncrona: `POST /menus/api/generar` responde `202` con un `job`;
   `GET /menus/api/generar/<job_id>` devuelve su estado (`pendiente`, `en_proceso`,
   `terminado` o `error`) y `GET /menus/api/generar/activos` lista los trabajos

@@ -6,6 +6,8 @@ ingredientes y lista de la compra. Puro: no toca ficheros ni la red.
 import re
 from datetime import datetime, timedelta
 
+from . import ingredientes
+
 # Paleta de colores para distinguir menús en el calendario
 MENU_COLORS = ['#4e79a7', '#e15759', '#59a14f', '#f28e2b', '#b07aa1', '#76b7b2', '#edc948', '#ff9da7']
 
@@ -67,35 +69,32 @@ def get_menu_range(menu_name, menu):
 
 
 def parse_quantity(qty_str):
-    """Parsea una cantidad de ingrediente"""
+    """Parsea una cantidad de ingrediente.
+    Conserva cualquier unidad ("latas", "tazas", "trozos"...), no solo las
+    de una lista cerrada, para no perder información al mostrar la receta."""
     if not qty_str:
         return {"val": 0, "unit": ""}
 
     qty_str = str(qty_str).lower().strip()
 
-    # Manejar fracciones
-    if '/' in qty_str:
-        parts = qty_str.split('/')
-        if len(parts) == 2:
-            try:
-                num = float(parts[0])
-                den = float(parts[1])
-                val = num / den
-                unit = qty_str.replace(f"{num}/{den}", "").strip()
-                return {"val": val, "unit": unit}
-            except:
-                pass
-
-    # Manejar cantidades con unidades (g, ml, etc.)
-    match = re.match(r'^([\d.]+)\s*(.*)$', qty_str)
+    # Fracciones: "1/2 taza", "1 / 2"
+    match = re.match(r'^(\d+(?:[.,]\d+)?)\s*/\s*(\d+(?:[.,]\d+)?)\s*(.*)$', qty_str)
     if match:
-        val = float(match.group(1))
-        unit = match.group(2).strip()
-        # Si la unidad está en la parte final y es g o ml, usarla
-        if unit.endswith(('g', 'ml', 'kg', 'l', 'unidad', 'unidades', 'pizca', 'cucharada', 'cucharadita')):
-            return {"val": val, "unit": unit}
-        else:
-            return {"val": val, "unit": ""}
+        try:
+            num = float(match.group(1).replace(',', '.'))
+            den = float(match.group(2).replace(',', '.'))
+            return {"val": num / den, "unit": match.group(3).strip()}
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    # Cantidades con unidades: "100 gr", "0.5 unidades", "1 lata"
+    match = re.match(r'^(\d+(?:[.,]\d+)?)\s*(.*)$', qty_str)
+    if match:
+        try:
+            return {"val": float(match.group(1).replace(',', '.')),
+                    "unit": match.group(2).strip()}
+        except ValueError:
+            pass
 
     return {"val": 0, "unit": qty_str}
 
@@ -147,10 +146,51 @@ def normalize_ingredient(key, value):
     return key, value
 
 
+# Unidades que no se pluralizan (gramos, mililitros, abreviaturas)
+_UNIDADES_SIN_PLURAL = {'', 'g', 'gr', 'kg', 'ml', 'l', 'lt', 'lts', 'cm', 'mm',
+                        'ud', 'uds', 'grs'}
+
+
+def _unidad_singular(unit):
+    """'latas' -> 'lata', 'unidades' -> 'unidad'; deja 'g'/'ml' igual."""
+    u = str(unit or '').strip().lower()
+    if not u or ' ' in u or u in _UNIDADES_SIN_PLURAL:
+        return u
+    if u.endswith('es') and len(u) > 3:
+        return u[:-2]
+    if u.endswith('s') and len(u) > 2:
+        return u[:-1]
+    return u
+
+
+def _unidad_plural(base):
+    """'lata' -> 'latas', 'unidad' -> 'unidades'; no toca 'g'/'ml'."""
+    if not base or base in _UNIDADES_SIN_PLURAL:
+        return base
+    if base.endswith('z'):
+        return base[:-1] + 'ces'
+    if base[-1] in 'aeiouáéíóú':
+        return base + 's'
+    return base + 'es'
+
+
+def _presentar_unidades(mapa):
+    """Fusiona unidades equivalentes y elige singular/plural según la cantidad."""
+    resultado = {}
+    for ingrediente, unidades in mapa.items():
+        nuevas = {}
+        for unit, val in unidades.items():
+            display = unit if val == 1 or not unit else _unidad_plural(unit)
+            nuevas[display] = nuevas.get(display, 0) + val
+        resultado[ingrediente] = nuevas
+    return resultado
+
+
 def process_ingredient(ingrediente, data, mandatory_map, optional_map):
     """Procesa un ingrediente para la lista de la compra"""
     # Normalizamos primero el ingrediente y su valor
     ingrediente, data = normalize_ingredient(ingrediente, data)
+    ingrediente = ingredientes.canonico(ingrediente)
 
     if not ingrediente:
         return
@@ -176,7 +216,7 @@ def process_ingredient(ingrediente, data, mandatory_map, optional_map):
         if ingrediente not in target_map:
             target_map[ingrediente] = {}
 
-        unit_key = unit or ''
+        unit_key = _unidad_singular(unit)
         current_val = target_map[ingrediente].get(unit_key, 0)
         target_map[ingrediente][unit_key] = current_val + val
 
@@ -215,7 +255,7 @@ def get_shopping_list(menus_data, recetas_data, exclusiones=None):
         for mapa in (mandatory_ingredients, optional_ingredients):
             for clave in [k for k in mapa if esta_excluido(k, exclusiones)]:
                 del mapa[clave]
-    return mandatory_ingredients, optional_ingredients
+    return _presentar_unidades(mandatory_ingredients), _presentar_unidades(optional_ingredients)
 
 
 def _shopping_raw(menus_data, recetas_data):
@@ -239,13 +279,17 @@ def _shopping_raw(menus_data, recetas_data):
 
 
 def normalize_receta(receta):
-    """Copia de la receta con los ingredientes normalizados para su presentación."""
+    """Copia de la receta con los ingredientes normalizados y estandarizados."""
     receta = receta.copy()
     if 'ingredientes' in receta:
         new_ing = {}
         for k, v in receta['ingredientes'].items():
             nk, nv = normalize_ingredient(k, v)
-            new_ing[nk] = nv
+            nk = ingredientes.canonico(nk)
+            if nk in new_ing:
+                new_ing[nk] = ingredientes.fusionar_valores(new_ing[nk], nv)
+            else:
+                new_ing[nk] = nv
         receta['ingredientes'] = new_ing
     return receta
 
@@ -287,11 +331,11 @@ def validar_receta(datos):
     if not nombre:
         return None, 'La receta necesita un nombre'
 
-    ingredientes = datos.get('ingredientes')
-    if not isinstance(ingredientes, dict) or not ingredientes:
+    ingredientes_datos = datos.get('ingredientes')
+    if not isinstance(ingredientes_datos, dict) or not ingredientes_datos:
         return None, 'La receta necesita al menos un ingrediente'
     limpios = {}
-    for clave, valor in ingredientes.items():
+    for clave, valor in ingredientes_datos.items():
         clave = str(clave).strip()
         if not clave:
             return None, 'Hay un ingrediente sin nombre'
@@ -310,7 +354,13 @@ def validar_receta(datos):
             valor = valor.strip()
         else:
             return None, f'Cantidad inválida en "{clave}"'
-        limpios[clave] = valor
+
+        canonica = ingredientes.canonico(clave)
+        if canonica in limpios:
+            # Dos alias del mismo ingrediente: se guardan como uno solo.
+            limpios[canonica] = ingredientes.fusionar_valores(limpios[canonica], valor)
+        else:
+            limpios[canonica] = valor
 
     def lista_texto(clave):
         valores = datos.get(clave) or []

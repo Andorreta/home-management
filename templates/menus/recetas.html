@@ -64,6 +64,11 @@
                         </div>
                         <div class="col-12">
                             <div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div>
+                            <p class="text-muted small mb-2">
+                                <i class="fas fa-info-circle"></i>
+                                Escribe y elige una sugerencia. Los nombres se guardan en forma estándar
+                                (p. ej. «atún en lata» → «atún en conserva»).
+                            </p>
                             <div id="rc-ingredientes"></div>
                             <button class="btn btn-outline-secondary btn-sm mt-2" type="button" onclick="agregarIngrediente('', '', false)">
                                 <i class="fas fa-plus"></i> Añadir ingrediente
@@ -277,7 +282,11 @@
 
     function agregarIngrediente(nombre, cantidad, opcional) {
         const fila = $('<div class="row g-2 mb-2 ing-row">' +
-            '<div class="col-md-5"><input type="text" class="form-control ing-nombre" aria-label="Nombre del ingrediente" placeholder="aceite de oliva"></div>' +
+            '<div class="col-md-5 ing-nombre-col">' +
+            '<input type="text" class="form-control ing-nombre" autocomplete="off" aria-label="Nombre del ingrediente" aria-autocomplete="list" aria-expanded="false" placeholder="aceite de oliva">' +
+            '<div class="ing-sugerencias" role="listbox" aria-label="Sugerencias de ingredientes" hidden></div>' +
+            '<div class="ing-hint small mt-1" hidden></div>' +
+            '</div>' +
             '<div class="col-md-5"><input type="text" class="form-control ing-cantidad" aria-label="Cantidad del ingrediente" placeholder="2 cucharadas / 50 ml / al gusto"></div>' +
             '<div class="col-md-2 d-flex align-items-center gap-2">' +
             '<label class="small mb-0">opc.<input type="checkbox" class="form-check-input ing-opcional ms-1"></label>' +
@@ -288,6 +297,119 @@
         fila.find('.ing-opcional').prop('checked', !!opcional);
         $('#rc-ingredientes').append(fila);
     }
+
+    // --- Autocompletado y estandarización de ingredientes ---
+
+    function ocultarSugerencias(input) {
+        const wrap = $(input).closest('.ing-nombre-col');
+        wrap.find('.ing-sugerencias').prop('hidden', true).empty();
+        wrap.find('.ing-hint').prop('hidden', true).empty();
+        $(input).attr('aria-expanded', 'false').removeData('ingIdx');
+    }
+
+    function mostrarSugerencias(input, lista, valor) {
+        const wrap = $(input).closest('.ing-nombre-col');
+        const box = wrap.find('.ing-sugerencias');
+        if (!lista.length) {
+            box.prop('hidden', true).empty();
+            $(input).attr('aria-expanded', 'false');
+            return;
+        }
+
+        let html = '';
+        lista.forEach(function(s) {
+            const alias = s.alias
+                ? '<span class="ing-sug-alias">coincide con «' + escapeHtml(s.alias) + '»</span>'
+                : '';
+            const usos = s.usos
+                ? '<span class="ing-sug-usos">' + s.usos + (s.usos === 1 ? ' receta' : ' recetas') + '</span>'
+                : '';
+            html += '<button type="button" class="ing-sug-item" role="option" tabindex="-1" data-nombre="' +
+                    escapeHtml(s.nombre) + '">' +
+                    '<span class="ing-sug-nombre">' + escapeHtml(s.nombre) + '</span>' +
+                    usos + alias + '</button>';
+        });
+        box.html(html).prop('hidden', false);
+        $(input).attr('aria-expanded', 'true').data('ingIdx', -1);
+
+        // Si lo escrito es un alias exacto, avisar del nombre que se guardará.
+        const exacto = lista.find(function(s) {
+            return s.alias && s.alias.toLowerCase() === valor.toLowerCase();
+        });
+        const hint = wrap.find('.ing-hint');
+        if (exacto) {
+            hint.text('Se guardará como «' + exacto.nombre + '»').prop('hidden', false);
+        } else {
+            hint.prop('hidden', true).empty();
+        }
+    }
+
+    function buscarSugerencias(input, valor) {
+        const seq = (input._ingSeq || 0) + 1;
+        input._ingSeq = seq;
+        $.get('/menus/api/ingredientes', { q: valor, limite: 8 })
+            .done(function(data) {
+                if (seq !== input._ingSeq) return;
+                if (input.value.trim() !== valor) return;
+                mostrarSugerencias(input, data.sugerencias || [], valor);
+            });
+    }
+
+    $(document).on('input', '.ing-nombre', function() {
+        const input = this;
+        const valor = input.value.trim();
+        if (input._ingTimer) clearTimeout(input._ingTimer);
+        input._ingTimer = setTimeout(function() {
+            buscarSugerencias(input, valor);
+        }, 220);
+    });
+
+    $(document).on('focus', '.ing-nombre', function() {
+        buscarSugerencias(this, this.value.trim());
+    });
+
+    $(document).on('click', '.ing-sug-item', function(e) {
+        e.preventDefault();
+        const input = $(this).closest('.ing-nombre-col').find('.ing-nombre');
+        input.val($(this).data('nombre'));
+        ocultarSugerencias(input[0]);
+        input.trigger('change');
+        input.focus();
+    });
+
+    $(document).on('keydown', '.ing-nombre', function(e) {
+        const box = $(this).closest('.ing-nombre-col').find('.ing-sugerencias');
+        if (box.prop('hidden')) return;
+        const items = box.find('.ing-sug-item');
+        if (!items.length) return;
+
+        let idx = $(this).data('ingIdx');
+        if (idx === undefined) idx = -1;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            idx = Math.min(idx + 1, items.length - 1);
+            items.removeClass('active').eq(idx).addClass('active');
+            $(this).data('ingIdx', idx);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            idx = Math.max(idx - 1, 0);
+            items.removeClass('active').eq(idx).addClass('active');
+            $(this).data('ingIdx', idx);
+        } else if (e.key === 'Enter' && idx >= 0) {
+            e.preventDefault();
+            items.eq(idx).trigger('click');
+        } else if (e.key === 'Escape') {
+            ocultarSugerencias(this);
+        }
+    });
+
+    $(document).on('blur', '.ing-nombre', function() {
+        const input = this;
+        setTimeout(function() {
+            if (document.activeElement !== input) ocultarSugerencias(input);
+        }, 150);
+    });
 
     function abrirModalReceta(id) {
         $('#rc-error').hide();
