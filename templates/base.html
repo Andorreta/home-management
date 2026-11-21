@@ -84,11 +84,32 @@
         </div>
     </div>
 
+    <!-- Detalle de una subreceta enlazada desde un paso -->
+    <div class="modal fade" id="subreceta-modal" tabindex="-1"
+         aria-labelledby="subreceta-modal-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="subreceta-modal-titulo">
+                        <i class="fas fa-diagram-subtask" aria-hidden="true"></i>
+                        <span id="subreceta-modal-titulo-texto">Subreceta</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="subreceta-modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/subrecetas.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

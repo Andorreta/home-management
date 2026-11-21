@@ -20,6 +20,29 @@
         return Number.isFinite(valor) ? fmtNumero.format(valor) : String(n ?? '');
     }
 
+    /* Cuerpo del modal de confirmación: un texto y, opcionalmente, una lista de
+       detalles (por ejemplo las recetas que usan una subreceta). Todo con
+       textContent: nunca se inyecta HTML desde los datos. */
+    function pintarCuerpoConfirmacion(body, mensaje, lineas) {
+        body.textContent = '';
+
+        const parrafo = document.createElement('p');
+        parrafo.className = 'confirm-modal-texto';
+        parrafo.textContent = mensaje;
+        body.appendChild(parrafo);
+
+        if (Array.isArray(lineas) && lineas.length) {
+            const lista = document.createElement('ul');
+            lista.className = 'confirm-modal-lineas';
+            lineas.forEach(function (texto) {
+                const li = document.createElement('li');
+                li.textContent = texto;
+                lista.appendChild(li);
+            });
+            body.appendChild(lista);
+        }
+    }
+
     function pedirConfirmacion(mensaje, callback, opciones) {
         opciones = opciones || {};
         const modalEl = document.getElementById('confirm-modal');
@@ -32,7 +55,7 @@
         const body = document.getElementById('confirm-modal-body');
         const ok = document.getElementById('confirm-modal-ok');
 
-        body.textContent = mensaje;
+        pintarCuerpoConfirmacion(body, mensaje, opciones.lineas);
         ok.textContent = opciones.textoBoton || 'Confirmar';
         ok.className = 'btn ' + (opciones.peligro === false ? 'btn-primary' : 'btn-danger');
 
@@ -40,13 +63,15 @@
         const alConfirmar = function () {
             confirmado = true;
             modal.hide();
-            if (typeof callback === 'function') callback();
         };
         const alCerrar = function () {
             modalEl.removeEventListener('hidden.bs.modal', alCerrar);
             ok.removeEventListener('click', alConfirmar);
-            if (!confirmado) {
-                // La cancelación no dispara ninguna acción.
+            if (confirmado && typeof callback === 'function') {
+                // Se ejecuta con el modal ya cerrado del todo: si la acción vuelve a pedir
+                // otra confirmación (p. ej. un 409), el segundo modal no se solapa con el
+                // cierre del primero y se ve entero.
+                callback();
             }
         };
 

@@ -45,7 +45,7 @@ def generar_menu(store, cfg, fecha_inicio, fecha_fin, feedback=''):
     catalogo = {
         rid: r.get('nombre', rid)
         for rid, r in recetas_data.items()
-        if helpers.utensilios_compatibles(r)
+        if helpers.utensilios_compatibles(rid, recetas_data)
     }
     if len(catalogo) < n_dias:
         return {'error': f'No hay suficientes recetas compatibles con tus utensilios ({len(catalogo)})'}, 400

@@ -17,12 +17,15 @@ DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 
 UTENSILIOS_PERMITIDOS = ('cazuela', 'sartén', 'sarten', 'microondas', 'cuchillo', 'varillas', 'tupper', 'recipiente', 'plato apto')
 
 
-def utensilios_compatibles(receta):
-    """True si la receta se puede hacer solo con cazuela, sartén y microondas con grill."""
-    for u in receta.get('utensilios', []):
-        u_low = u.lower()
-        if not any(p in u_low for p in UTENSILIOS_PERMITIDOS):
-            return False
+def utensilios_compatibles(receta_id, recetas_data):
+    """True si la receta (y las subrecetas que enlaza) se puede hacer solo con
+    cazuela, sartén y microondas con grill. Se miran las subrecetas porque los
+    utensilios de una preparación base viven en ella, no en el plato."""
+    ids, _ = expandir_receta(receta_id, recetas_data)
+    for rid in ids:
+        for u in recetas_data.get(rid, {}).get('utensilios', []):
+            if not any(p in str(u).lower() for p in UTENSILIOS_PERMITIDOS):
+                return False
     return True
 
 
@@ -270,10 +273,15 @@ def _shopping_raw(menus_data, recetas_data):
                     if f'id_{meal_type}' in day and day[f'id_{meal_type}'] and day[f'id_{meal_type}'] != "sobras":
                         receta_id = day[f'id_{meal_type}']
                         if receta_id in recetas_data:
-                            receta = recetas_data[receta_id]
-                            if 'ingredientes' in receta:
-                                for ingrediente, data in receta['ingredientes'].items():
-                                    process_ingredient(ingrediente, data, mandatory_ingredients, optional_ingredients)
+                            # En cascada: un plato aporta sus ingredientes y los de las
+                            # subrecetas enlazadas en sus pasos (una sola vez por plato,
+                            # que es lo que se compra para ese plato).
+                            ids, _ = expandir_receta(receta_id, recetas_data)
+                            for rid in ids:
+                                receta = recetas_data[rid]
+                                if 'ingredientes' in receta:
+                                    for ingrediente, data in receta['ingredientes'].items():
+                                        process_ingredient(ingrediente, data, mandatory_ingredients, optional_ingredients)
 
     return mandatory_ingredients, optional_ingredients
 
@@ -322,7 +330,230 @@ def receta_id_disponible(nombre, existentes):
     return candidate
 
 
-def validar_receta(datos):
+# --- Subrecetas: un paso puede enlazar a otra receta ---
+#
+# Un paso puede ser (o contener) el marcador  [subreceta](id)  , que en la interfaz
+# se pinta como un enlace y abre la receta enlazada en un modal. El marcador vive
+# dentro del string del paso, así que no hace falta ningún cambio en los datos:
+# recetas viejas y nuevas se guardan exactamente igual. Se guarda el ID (el nombre
+# puede cambiar o repetirse); al escribir el nombre a mano se resuelve y se
+# reescribe con el id canónico.
+
+SUBRECETA_RE = re.compile(r'\[subreceta\]\(\s*([^)]*?)\s*\)')
+
+# Red de seguridad para cadenas de subrecetas absurdamente largas (un bucle real
+# se rechaza al guardar; aquí solo nos protegemos de datos corruptos).
+SUBRECETA_MAX_NIVEL = 40
+
+
+def nombres_de(recetas_data):
+    """{id_receta: nombre} para resolver los enlaces de los pasos."""
+    return {rid: r.get('nombre', rid) for rid, r in recetas_data.items()}
+
+
+def resolver_subreceta(texto, catalogo_nombres):
+    """Id de la receta enlazada. Devuelve (id, error).
+
+    Acepta el id exacto, su slug o el nombre de la receta (sin acentos ni mayúsculas)."""
+    t = str(texto or '').strip()
+    if not t:
+        return None, 'el enlace está vacío'
+    if t in catalogo_nombres:
+        return t, None
+
+    sl = slugify(t)
+    if sl in catalogo_nombres:
+        return sl, None
+
+    clave = _norm_palabra(t)
+    gemelas = [rid for rid, nombre in catalogo_nombres.items() if _norm_palabra(nombre) == clave]
+    if len(gemelas) == 1:
+        return gemelas[0], None
+    if len(gemelas) > 1:
+        return None, f'varias recetas se llaman "{t}"; usa su id'
+    return None, f'no existe ninguna receta para "{t}"'
+
+
+def subrecetas_en_texto(texto):
+    """Textos de los marcadores de un paso, tal como están escritos."""
+    return [m.group(1) for m in SUBRECETA_RE.finditer(str(texto or ''))]
+
+
+def normalizar_pasos(pasos, catalogo_nombres):
+    """Reescribe los marcadores con el id canónico.
+
+    Devuelve (pasos_limpios, errores) donde errores es una lista de frases
+    legibles (enlace vacío, inexistente o ambiguo)."""
+    limpios = []
+    errores = []
+    for paso in pasos or []:
+        texto = str(paso)
+
+        def sustituir(match):
+            crudo = match.group(1)
+            rid, error = resolver_subreceta(crudo, catalogo_nombres)
+            if error:
+                errores.append(f'paso «{_recortar(texto)}»: {error}')
+                return match.group(0)
+            return f'[subreceta]({rid})'
+
+        limpios.append(SUBRECETA_RE.sub(sustituir, texto))
+    return limpios, errores
+
+
+def _recortar(texto, largo=40):
+    t = ' '.join(str(texto).split())
+    return t if len(t) <= largo else t[:largo - 1] + '…'
+
+
+def subrecetas_de_receta(receta, catalogo_nombres):
+    """Ids (sin duplicados, en orden) de las recetas que enlaza una receta."""
+    ids = []
+    for paso in receta.get('pasos', []) or []:
+        for crudo in subrecetas_en_texto(paso):
+            rid, _ = resolver_subreceta(crudo, catalogo_nombres)
+            if rid and rid not in ids:
+                ids.append(rid)
+    return ids
+
+
+def expandir_receta(receta_id, recetas_data):
+    """(ids, rotos) de recorrer una receta en cascada.
+
+    ids: la receta y todas las enlazadas, en profundidad, cada una una sola vez
+    (los bucles no duplican y no cuelgan el recorrido).
+    rotos: [{'receta', 'enlace'}] de los marcadores que ya no apuntan a nada."""
+    catalogo_nombres = nombres_de(recetas_data)
+    ids, rotos, vistos = [], [], set()
+    pila = [(receta_id, 0)]
+    while pila:
+        rid, nivel = pila.pop()
+        if rid in vistos or nivel > SUBRECETA_MAX_NIVEL:
+            continue
+        vistos.add(rid)
+        receta = recetas_data.get(rid)
+        if not receta:
+            continue
+        ids.append(rid)
+        for crudo in subrecetas_en_texto('\n'.join(str(p) for p in receta.get('pasos', []) or [])):
+            sub, error = resolver_subreceta(crudo, catalogo_nombres)
+            if error:
+                rotos.append({'receta': rid, 'enlace': crudo.strip()})
+            elif sub not in vistos:
+                pila.append((sub, nivel + 1))
+    return ids, rotos
+
+
+def subrecetas_usadas_por(recetas_data, receta_id):
+    """Ids de las recetas que enlazan receta_id en alguno de sus pasos."""
+    catalogo_nombres = nombres_de(recetas_data)
+    usadas_por = {}
+    for rid, receta in recetas_data.items():
+        if rid == receta_id:
+            continue
+        if receta_id in subrecetas_de_receta(receta, catalogo_nombres):
+            usadas_por[rid] = True
+    return sorted(usadas_por)
+
+
+def indice_usadas_por(recetas_data):
+    """{id_receta: [ids de las recetas que la enlazan]} para listar y contar sin repetir recorridos."""
+    catalogo_nombres = nombres_de(recetas_data)
+    indice = {}
+    for rid, receta in recetas_data.items():
+        for sub in subrecetas_de_receta(receta, catalogo_nombres):
+            if sub != rid:
+                indice.setdefault(sub, []).append(rid)
+    for lista in indice.values():
+        lista.sort()
+    return indice
+
+
+def hay_ciclo_subrecetas(receta_id, receta, recetas_data):
+    """True si lo que enlaza la receta crea bucle (se enlaza a sí misma, directa o indirectamente)."""
+    catalogo_nombres = nombres_de(recetas_data)
+    catalogo_nombres.setdefault(receta_id, receta.get('nombre', receta_id))
+
+    def vecinas(rid):
+        origen = receta if rid == receta_id else (recetas_data.get(rid) or {})
+        return subrecetas_de_receta(origen, catalogo_nombres)
+
+    en_camino = {receta_id}
+    pila = [(receta_id, iter(vecinas(receta_id)))]
+    while pila:
+        nodo, vecinas_iter = pila[-1]
+        avanzado = False
+        for sub in vecinas_iter:
+            if sub in en_camino:
+                return True
+            en_camino.add(sub)
+            pila.append((sub, iter(vecinas(sub))))
+            avanzado = True
+            break
+        if not avanzado:
+            pila.pop()
+            en_camino.discard(nodo)
+    return False
+
+
+def materializar_subreceta(padre, sub_id, recetas_data, catalogo_nombres=None):
+    """Deshace el enlace de un padre: copia los pasos de la subreceta en el sitio del
+    marcador y le suma los ingredientes y utensilios que aquella aportaba.
+
+    Es lo que hace falta para poder borrar una subreceta sin que el plato pierda,
+    por ejemplo, la pasta y la sal: la receta vuelve a ser autocontenida."""
+    sub = recetas_data.get(sub_id) or {}
+    catalogo_nombres = catalogo_nombres if catalogo_nombres is not None else nombres_de(recetas_data)
+
+    pasos = []
+    for paso in padre.get('pasos', []) or []:
+        texto = str(paso)
+
+        def sustituir(match):
+            rid, _ = resolver_subreceta(match.group(1), catalogo_nombres)
+            if rid != sub_id:
+                return match.group(0)   # otros enlaces siguen apuntando a recetas vivas
+            return ''
+
+        sin_enlace = SUBRECETA_RE.sub(sustituir, texto)
+        sin_enlace = ' '.join(sin_enlace.split())
+        if sin_enlace != ' '.join(texto.split()):
+            # Aquí había un enlace a la subreceta que se borra: sus pasos van en su sitio.
+            if sin_enlace:
+                pasos.append(sin_enlace)
+            pasos.extend(str(p) for p in sub.get('pasos', []) or [])
+        else:
+            pasos.append(texto)
+
+    nuevo = dict(padre)
+    nuevo['pasos'] = pasos
+
+    ingredientes = dict(nuevo.get('ingredientes', {}) or {})
+    tienen = {ingredientes_canonico(clave) for clave in ingredientes}
+    for clave, valor in (sub.get('ingredientes', {}) or {}).items():
+        canonica = ingredientes_canonico(clave)
+        if canonica not in tienen:
+            ingredientes[clave] = valor
+            tienen.add(canonica)
+    nuevo['ingredientes'] = ingredientes
+
+    utensilios = list(nuevo.get('utensilios', []) or [])
+    tienen_u = {str(u).strip().lower() for u in utensilios}
+    for u in sub.get('utensilios', []) or []:
+        si_u = str(u).strip().lower()
+        if si_u and si_u not in tienen_u:
+            utensilios.append(u)
+            tienen_u.add(si_u)
+    nuevo['utensilios'] = utensilios
+    return nuevo
+
+
+def ingredientes_canonico(clave):
+    """Clave de ingrediente en forma comparable (canónica, minúscula, sin espacios de más)."""
+    return ingredientes.canonico(str(clave).strip())
+
+
+def validar_receta(datos, catalogo_nombres=None):
     """Comprueba el cuerpo enviado por la web. Devuelve (receta_limpia, error)."""
     if not isinstance(datos, dict):
         return None, 'El cuerpo debe ser un objeto JSON'
@@ -376,6 +607,13 @@ def validar_receta(datos):
     pasos, err = lista_texto('pasos')
     if err:
         return None, err
+
+    # Los enlaces [subreceta](...) se guardan con el id canónico; si apuntan a
+    # algo que no existe se rechaza el guardado (la interfaz los elige de una lista).
+    if catalogo_nombres is not None:
+        pasos, errores = normalizar_pasos(pasos, catalogo_nombres)
+        if errores:
+            return None, 'Revisa los enlaces a subrecetas: ' + '; '.join(errores)
 
     receta = {'nombre': nombre, 'utensilios': utensilios,
               'ingredientes': limpios, 'pasos': pasos}

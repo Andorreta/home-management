@@ -246,6 +246,20 @@
         html += '</div>';
         html += '</div>';
 
+        // Pasos que enlazan una receta ya borrada (el menú sigue siendo usable)
+        if (data.avisos && data.avisos.length) {
+            html += '<div class="alert alert-warning" role="alert">';
+            html += '<i class="fas fa-unlink"></i> Algunos pasos enlazan recetas que ya no existen: ';
+            html += '<ul class="mb-0 mt-1">';
+            data.avisos.forEach(function (a) {
+                html += '<li>' + escapeHtml(a.plato || a.receta_nombre || a.receta) +
+                        ' enlaza «' + escapeHtml(a.enlace) + '»';
+                if (a.dia) html += ' <span class="text-muted small">(' + escapeHtml(a.dia) + ')</span>';
+                html += '</li>';
+            });
+            html += '</ul></div>';
+        }
+
         // Lista de la compra
         html += '<details class="shopping-list">';
         html += '<summary><span class="shopping-list-title"><i class="fas fa-shopping-cart"></i> Lista de la compra</span></summary>';
@@ -336,7 +350,9 @@
         }
 
         const uteHtml = receta.utensilios ? receta.utensilios.map(u => '<li>' + escapeHtml(u) + '</li>').join('') : '';
-        const pasHtml = receta.pasos ? receta.pasos.map(p => '<li>' + escapeHtml(p) + '</li>').join('') : '';
+        // Los pasos pueden enlazar subrecetas: window.pasosHtml (static/js/subrecetas.js)
+        const pasHtml = window.pasosHtml ? window.pasosHtml(receta.pasos)
+                                         : (receta.pasos || []).map(p => '<li>' + escapeHtml(p) + '</li>').join('');
 
         return `
         <details class="recipe-card">

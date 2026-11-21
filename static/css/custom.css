@@ -472,6 +472,176 @@ summary:hover {
     padding-left: 5px;
 }
 
+/* ---------- Subrecetas (un paso enlaza a otra receta) ---------- */
+/* Enlace dentro del texto de un paso: fondo neutro y texto oscuro, para que se
+   distinga del paso normal sin convertirse en un botón llamativo. */
+.subreceta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 2px;
+    padding: 2px 8px;
+    border: 0;
+    border-bottom: 1px dashed #8b98a5;
+    border-radius: 6px;
+    background-color: #eef3f8;
+    color: #333;
+    font: inherit;
+    font-size: 0.95em;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+}
+
+.subreceta-chip i {
+    color: #495057;
+    font-size: 0.85em;
+}
+
+.subreceta-chip-nombre {
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+}
+
+.subreceta-chip:hover {
+    background-color: #e2eaf3;
+}
+
+.subreceta-chip:focus-visible {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Enlace que ya no apunta a ninguna receta guardada */
+.subreceta-rota {
+    background-color: #fdf3d7;
+    border-bottom-color: #b08a2e;
+    color: #6b5210;
+    cursor: help;
+}
+
+.subreceta-rota i {
+    color: #8a6d1f;
+}
+
+/* La subreceta ya está abierta más arriba en la misma cadena */
+.subreceta-chip-anidada {
+    background-color: #f1f3f5;
+    border-bottom-style: solid;
+    color: #6c757d;
+    cursor: default;
+}
+
+.sub-usan {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.badge-usada {
+    background-color: #eef3f8;
+    border: 1px solid #d7e0e8;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* Panel del editor: buscador + inserción del enlace en un paso */
+.sub-insert {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e3e8ee;
+    border-radius: 8px;
+    background-color: #fbfcfd;
+}
+
+.sub-buscar {
+    position: relative;
+}
+
+.sub-sugerencias {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1060;
+    margin-top: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+    background-color: #fff;
+    border: 1px solid #d7e0e8;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.sub-enlace {
+    display: inline-block;
+    margin: 0 2px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background-color: #e9f2e9;
+    color: #2f5d33;
+    font-weight: 600;
+}
+
+.sub-info-titulo {
+    font-weight: 600;
+    color: #495057;
+}
+
+.text-warning-sub {
+    color: #8a6d1f;
+}
+
+.subreceta-ruta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    color: #6c757d;
+}
+
+.subreceta-ruta-enlace {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: #495057;
+    font: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+}
+
+.subreceta-ruta-enlace:hover {
+    color: #007bff;
+}
+
+/* La última posición del breadcrumb es la receta que se está viendo. */
+.subreceta-ruta-actual {
+    color: #212529;
+    font-weight: 600;
+}
+
+#subreceta-modal .recipe-detail {
+    border: 0;
+    border-left: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+/* ---------- Confirmaciones ---------- */
+.confirm-modal-texto {
+    white-space: pre-line;
+    margin-bottom: 0.5rem;
+}
+
+.confirm-modal-lineas {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: #495057;
+}
+
 /* ---------- Calendario ---------- */
 .calendar-wrap {
     display: flex;

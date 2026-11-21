@@ -74,13 +74,40 @@
                                 <i class="fas fa-plus"></i> Añadir ingrediente
                             </button>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                             <label class="form-label" for="rc-utensilios"><i class="fas fa-blender"></i> Utensilios <span class="text-muted small">(uno por línea)</span></label>
-                            <textarea id="rc-utensilios" class="form-control" rows="4" placeholder="Cazuela&#10;Sartén"></textarea>
+                            <textarea id="rc-utensilios" class="form-control" rows="6" placeholder="Cazuela&#10;Sartén"></textarea>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-7">
                             <label class="form-label" for="rc-pasos"><i class="fas fa-clipboard-list"></i> Pasos <span class="text-muted small">(uno por línea)</span></label>
                             <textarea id="rc-pasos" class="form-control" rows="6" placeholder="Pica la cebolla..."></textarea>
+
+                            <div class="sub-insert">
+                                <label class="form-label small" for="rc-sub-buscar">
+                                    <i class="fas fa-diagram-subtask"></i> Enlazar una subreceta a un paso
+                                </label>
+                                <p class="text-muted small mb-1">
+                                    Lo que se repite siempre (cocer la pasta, cocer el arroz…) se define una vez
+                                    en su propia receta y se enlaza aquí. Sus ingredientes cuentan para la lista
+                                    de la compra, así que no los repitas en esta receta.
+                                </p>
+                                <div class="sub-buscar">
+                                    <input type="text" id="rc-sub-buscar" class="form-control form-control-sm"
+                                           placeholder="Escribe el nombre de una receta…" autocomplete="off"
+                                           aria-autocomplete="list" aria-expanded="false" aria-describedby="rc-sub-info">
+                                    <div class="sub-sugerencias" id="rc-sub-sugerencias" role="listbox"
+                                         aria-label="Recetas para enlazar" hidden></div>
+                                </div>
+                                <div class="d-flex gap-2 mt-2 flex-wrap">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarSubreceta('cursor')">
+                                        <i class="fas fa-thumbtack"></i> En el cursor
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarSubreceta('paso')">
+                                        <i class="fas fa-plus"></i> Como paso nuevo
+                                    </button>
+                                </div>
+                                <div class="small mt-2" id="rc-sub-info" role="status" aria-live="polite"></div>
+                            </div>
                         </div>
                     </div>
                     <div id="rc-error" class="alert alert-danger mt-3" style="display:none" role="alert"></div>
@@ -161,8 +188,12 @@
         allRecipes.forEach(function(r) {
             if (filtro && r.nombre.toLowerCase().indexOf(filtro) === -1) return;
             const active = r.id === currentRecipeId ? ' active' : '';
+            const n = (r.usada_por || []).length;
+            const contador = n
+                ? ' <span class="badge badge-usada" title="Recetas que la enlazan como subreceta">usada por ' + n + '</span>'
+                : '';
             html += '<button type="button" class="recipe-list-item' + active + '" onclick="selectRecipe(\'' + r.id + '\')">' +
-                    '<i class="fas fa-utensil-spoon" aria-hidden="true"></i> ' + escapeHtml(r.nombre) + '</button>';
+                    '<i class="fas fa-utensil-spoon" aria-hidden="true"></i> ' + escapeHtml(r.nombre) + contador + '</button>';
         });
         $('#recipe-list').html(html || '<p class="text-muted small">Ninguna receta coincide con el filtro</p>');
     }
@@ -260,11 +291,11 @@
         // Debajo: la receta (pasos)
         html += '<div class="section-title"><i class="fas fa-clipboard-list"></i> Receta</div>';
         if (receta.pasos && receta.pasos.length) {
-            html += '<ol class="recipe-steps">';
-            receta.pasos.forEach(function(p) {
-                html += '<li>' + escapeHtml(p) + '</li>';
-            });
-            html += '</ol>';
+            // Un paso puede enlazar una subreceta: window.pasosHtml (static/js/subrecetas.js)
+            const pasos = window.pasosHtml
+                ? window.pasosHtml(receta.pasos)
+                : receta.pasos.map(function (p) { return '<li>' + escapeHtml(p) + '</li>'; }).join('');
+            html += '<ol class="recipe-steps">' + pasos + '</ol>';
         } else {
             html += '<p class="text-muted"><i class="fas fa-info-circle"></i> Esta receta no tiene pasos indicados.</p>';
         }
@@ -272,6 +303,19 @@
         if (receta.notas) {
             html += '<div class="section-title"><i class="fas fa-sticky-note"></i> Notas</div>';
             html += '<p>' + escapeHtml(receta.notas) + '</p>';
+        }
+
+        // Recetas que la enlazan como subreceta (índice inverso del catálogo)
+        const guardada = allRecipes.find(r => r.id === currentRecipeId) || {};
+        const usadasPor = guardada.usada_por || [];
+        if (usadasPor.length) {
+            html += '<div class="section-title"><i class="fas fa-diagram-subtask"></i> La usan como subreceta</div>';
+            html += '<p class="sub-usan">' + usadasPor.map(function (id) {
+                const r = allRecipes.find(x => x.id === id);
+                return '<button type="button" class="subreceta-chip" data-subreceta="' + escapeHtml(id) + '"' +
+                       ' aria-haspopup="dialog"><i class="fas fa-utensil-spoon" aria-hidden="true"></i>' +
+                       '<span class="subreceta-chip-nombre">' + escapeHtml(r ? r.nombre : id) + '</span></button>';
+            }).join(' ') + '</p>';
         }
 
         html += '</div>';
@@ -411,11 +455,213 @@
         }, 150);
     });
 
+    // --- Enlazar subrecetas en los pasos ---
+    //
+    // Un paso puede ser (o llevar dentro) el marcador  [subreceta](id) . El buscador
+    // evita escribir la sintaxis a mano; lo que se guarda es un paso normal y corriente.
+
+    const MARCADOR_SUB = /\[subreceta\]\(\s*([^)]*?)\s*\)/g;
+    let subSeleccion = null;          // {id, nombre} elegido en el buscador
+    const subDetalleCache = {};       // {id: receta enlazada}, para avisar de duplicados
+
+    function mapaCatalogo() {
+        const mapa = {};
+        allRecipes.forEach(function (r) { mapa[r.id] = r.nombre; });
+        return mapa;
+    }
+
+    function claveIng(texto) {
+        // Comparación aproximada de ingredientes (la canónica la hace el servidor).
+        return String(texto || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ').trim();
+    }
+
+    function detalleSub(id) {
+        if (subDetalleCache[id]) return Promise.resolve(subDetalleCache[id]);
+        return new Promise(function (resolver) {
+            $.getJSON('/menus/api/receta/' + encodeURIComponent(id))
+                .done(function (r) { subDetalleCache[id] = r; resolver(r); })
+                .fail(function () { resolver(null); });
+        });
+    }
+
+    function ocultarSugerenciasSub() {
+        $('#rc-sub-sugerencias').prop('hidden', true).empty();
+        $('#rc-sub-buscar').attr('aria-expanded', 'false');
+    }
+
+    function pintarSugerenciasSub() {
+        const texto = claveIng(($('#rc-sub-buscar').val() || '').trim());
+        const editando = $('#rc-id-original').val();
+        const caja = $('#rc-sub-sugerencias');
+        if (!texto) { ocultarSugerenciasSub(); return; }
+
+        const coincidencias = allRecipes.filter(function (r) {
+            if (r.id === editando) return false;      // una receta no se enlaza a sí misma
+            return claveIng(r.nombre).indexOf(texto) !== -1 || r.id.indexOf(texto) !== -1;
+        }).slice(0, 8);
+
+        if (!coincidencias.length) {
+            caja.html('<div class="ing-sug-alias px-2 py-1">Ninguna receta coincide</div>').prop('hidden', false);
+            $('#rc-sub-buscar').attr('aria-expanded', 'true');
+            return;
+        }
+        let html = '';
+        coincidencias.forEach(function (r) {
+            html += '<button type="button" class="ing-sug-item" role="option" tabindex="-1" data-id="' +
+                    escapeHtml(r.id) + '"><span class="ing-sug-nombre">' + escapeHtml(r.nombre) + '</span>' +
+                    '<span class="ing-sug-usos">' + escapeHtml(r.id) + '</span></button>';
+        });
+        caja.html(html).prop('hidden', false);
+        $('#rc-sub-buscar').attr('aria-expanded', 'true');
+    }
+
+    function insertarSubreceta(modo) {
+        const mapa = mapaCatalogo();
+        if (!subSeleccion) {
+            const escrito = ($('#rc-sub-buscar').val() || '').trim();
+            const id = escrito ? window.resolverSubrecetaTexto(escrito, mapa) : null;
+            if (!id) {
+                mostrarToast('Escribe el nombre de una receta guardada y elígela en la lista.', 'warning');
+                return;
+            }
+            subSeleccion = { id: id, nombre: mapa[id] };
+        }
+
+        const marcador = '[subreceta](' + subSeleccion.id + ')';
+        const paso = document.getElementById('rc-pasos');
+        if (modo === 'paso') {
+            const valor = paso.value.replace(/\s+$/, '');
+            paso.value = (valor ? valor + '\n' : '') + marcador + '\n';
+        } else {
+            const ini = paso.selectionStart, fin = paso.selectionEnd;
+            paso.value = paso.value.slice(0, ini) + marcador + paso.value.slice(fin);
+            paso.selectionStart = paso.selectionEnd = ini + marcador.length;
+        }
+        paso.focus();
+        refrescarEnlacesSub();
+    }
+
+    // Debajo del buscador: qué hay enlazado, enlaces mal escritos y posibles duplicados
+    function refrescarEnlacesSub() {
+        const mapa = mapaCatalogo();
+        const editando = $('#rc-id-original').val();
+        const texto = $('#rc-pasos').val() || '';
+        const re = new RegExp(MARCADOR_SUB.source, 'g');
+
+        const enlazadas = [];
+        const rotos = [];
+        let m;
+        while ((m = re.exec(texto)) !== null) {
+            const crudo = (m[1] || '').trim();
+            const id = window.resolverSubrecetaTexto(crudo, mapa);
+            if (!id) rotos.push(crudo);
+            else if (enlazadas.indexOf(id) === -1) enlazadas.push(id);
+        }
+
+        let html = '';
+        if (enlazadas.length) {
+            html += '<span class="sub-info-titulo"><i class="fas fa-diagram-subtask"></i> Enlazadas:</span> ' +
+                    enlazadas.map(function (id) {
+                        return '<span class="sub-enlace">' + escapeHtml(mapa[id] || id) + '</span>';
+                    }).join(' ');
+        } else {
+            html += '<span class="text-muted">Sin subrecetas enlazadas en los pasos.</span>';
+        }
+        rotos.forEach(function (crudo) {
+            html += '<br><span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ' +
+                    '«' + escapeHtml(crudo) + '» no es una receta del catálogo.</span>';
+        });
+        if (editando && enlazadas.indexOf(editando) !== -1) {
+            html += '<br><span class="text-danger"><i class="fas fa-exclamation-triangle"></i> ' +
+                    'Una receta no puede enlazarse a sí misma.</span>';
+        }
+        const caja = $('#rc-sub-info');
+        caja.html(html);
+
+        if (!enlazadas.length) return;
+        const esperado = (refrescarEnlacesSub.seq || 0) + 1;
+        refrescarEnlacesSub.seq = esperado;
+        Promise.all(enlazadas.map(detalleSub)).then(function (detalles) {
+            if (esperado !== refrescarEnlacesSub.seq) return;   // el usuario siguió escribiendo
+            const delPadre = {};
+            $('#rc-ingredientes .ing-nombre').each(function () {
+                const clave = claveIng($(this).val());
+                if (clave) delPadre[clave] = $(this).val().trim();
+            });
+            let avisos = '';
+            detalles.forEach(function (receta, i) {
+                if (!receta) return;
+                Object.keys(receta.ingredientes || {}).forEach(function (clave) {
+                    const k = claveIng(clave);
+                    if (delPadre[k]) {
+                        avisos += '<br><span class="text-warning-sub"><i class="fas fa-info-circle"></i> ' +
+                                  '«' + escapeHtml(delPadre[k]) + '» también lo aporta «' +
+                                  escapeHtml(mapa[enlazadas[i]] || enlazadas[i]) +
+                                  '»: quítalo de aquí para no contarlo dos veces.</span>';
+                    }
+                });
+            });
+            if (avisos) caja.html(caja.html() + avisos);
+        });
+    }
+
+    $(document).on('input', '#rc-sub-buscar', function () {
+        subSeleccion = null;
+        pintarSugerenciasSub();
+    });
+
+    $(document).on('focus', '#rc-sub-buscar', pintarSugerenciasSub);
+
+    $(document).on('click', '#rc-sub-sugerencias .ing-sug-item', function () {
+        const id = String($(this).data('id'));
+        subSeleccion = { id: id, nombre: mapaCatalogo()[id] || id };
+        $('#rc-sub-buscar').val(subSeleccion.nombre);
+        ocultarSugerenciasSub();
+        refrescarEnlacesSub();
+    });
+
+    $(document).on('keydown', '#rc-sub-buscar', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            insertarSubreceta('paso');
+        } else if (e.key === 'Escape') {
+            ocultarSugerenciasSub();
+        }
+    });
+
+    $(document).on('blur', '#rc-sub-buscar', function () {
+        const caja = $('#rc-sub-sugerencias');
+        setTimeout(function () { if (caja.find('.ing-sug-item:hover').length === 0) ocultarSugerenciasSub(); }, 150);
+    });
+
+    $(document).on('input', '#rc-pasos', function () {
+        if (this._subTimer) clearTimeout(this._subTimer);
+        this._subTimer = setTimeout(refrescarEnlacesSub, 250);
+    });
+
+    // Los avisos de duplicados dependen también de los ingredientes: al tocar las filas
+    // (escribir, elegir una sugerencia o quitar la fila) se vuelve a comprobar.
+    let subTimerIngredientes = null;
+    function refrescarEnlacesSubPronto() {
+        if (subTimerIngredientes) clearTimeout(subTimerIngredientes);
+        subTimerIngredientes = setTimeout(refrescarEnlacesSub, 300);
+    }
+
+    $(document).on('input', '#rc-ingredientes .ing-nombre', refrescarEnlacesSubPronto);
+    $(document).on('click', '#rc-ingredientes button', refrescarEnlacesSubPronto);
+
     function abrirModalReceta(id) {
         $('#rc-error').hide();
         $('#receta-form')[0].reset();
         $('#rc-ingredientes').empty();
         $('#rc-id-original').val(id || '');
+        subSeleccion = null;
+        Object.keys(subDetalleCache).forEach(function (k) { delete subDetalleCache[k]; });
+        $('#rc-sub-buscar').val('');
+        ocultarSugerenciasSub();
+        $('#rc-sub-info').empty();
 
         if (id) {
             // Edición: cargamos la receta SIN normalizar (raw) para no alterar los datos
@@ -439,6 +685,7 @@
                     $('#rc-utensilios').val((r.utensilios || []).join('\n'));
                     $('#rc-pasos').val((r.pasos || []).join('\n'));
                     if (!Object.keys(r.ingredientes || {}).length) agregarIngrediente('', '', false);
+                    refrescarEnlacesSub();
                     recetaModal.show();
                 })
                 .fail(function() {
@@ -450,6 +697,7 @@
             $('#rc-id').val('').prop('readonly', false);
             agregarIngrediente('', '', false);
             agregarIngrediente('', '', false);
+            refrescarEnlacesSub();
             recetaModal.show();
         }
     }
@@ -507,6 +755,11 @@
         return false;
     }
 
+    function nombreDeReceta(id) {
+        const r = allRecipes.find(x => x.id === id);
+        return r ? r.nombre : id;
+    }
+
     function borrarReceta(id) {
         const receta = allRecipes.find(r => r.id === id);
         const nombre = receta ? receta.nombre : id;
@@ -519,26 +772,54 @@
                 })
                 .fail(function(xhr) {
                     const datos = xhr.responseJSON || {};
-                    if (xhr.status === 409 && datos.menus) {
-                        pedirConfirmacion(
-                            'Esta receta aparece en ' + datos.menus.length + ' menú(s): ' + datos.menus.join(', ') +
-                            '.\n\n¿Eliminarla de todos modos? Los menús perderán esa receta en la lista de la compra.',
-                            function() {
-                                $.ajax({ url: '/menus/api/receta/' + id + '?force=1', method: 'DELETE' })
-                                    .done(function() {
-                                        currentRecipeId = null;
-                                        cargarRecetas();
-                                        mostrarToast('Receta eliminada de todos los menús.', 'success');
-                                    })
-                                    .fail(function(err) {
-                                        mostrarToast(((err.responseJSON || {}).error) || 'Error al eliminar la receta');
-                                    });
-                            },
-                            { textoBoton: 'Eliminar de todos modos' }
-                        );
-                    } else {
+                    if (xhr.status !== 409) {
                         mostrarToast(datos.error || 'Error al eliminar la receta');
+                        return;
                     }
+
+                    // La usan menús y/o otras recetas como subreceta: se dice cuántas y
+                    // al forzar la subreceta se materializa en ellas antes de borrarse.
+                    const padres = datos.recetas_que_la_usan || [];
+                    const menus = datos.menus || [];
+                    const lineas = [];
+                    let pregunta;
+
+                    if (padres.length) {
+                        pregunta = 'La receta "' + nombre + '" es subreceta de ' + padres.length +
+                                   ' ' + (padres.length === 1 ? 'receta' : 'recetas') +
+                                   '. Al eliminarla se copiarán sus pasos, ingredientes y utensilios' +
+                                   ' en cada una de ellas (vuelven a ser recetas completas y la lista' +
+                                   ' de la compra no cambia).';
+                        padres.slice(0, 12).forEach(function (pid) { lineas.push(nombreDeReceta(pid)); });
+                        if (padres.length > 12) lineas.push('… y ' + (padres.length - 12) + ' más');
+                    } else {
+                        pregunta = 'Esta receta aparece en ' + menus.length + ' ' +
+                                   (menus.length === 1 ? 'menú guardado' : 'menús guardados') + '.';
+                        lineas.push.apply(lineas, menus.slice(0, 12));
+                        if (menus.length > 12) lineas.push('… y ' + (menus.length - 12) + ' más');
+                    }
+                    if (padres.length && menus.length) {
+                        lineas.push('Además aparece en ' + menus.length + ' ' +
+                                    (menus.length === 1 ? 'menú' : 'menús') + ' guardados.');
+                    }
+
+                    pedirConfirmacion(pregunta, function () {
+                        $.ajax({ url: '/menus/api/receta/' + id + '?force=1', method: 'DELETE' })
+                            .done(function (respuesta) {
+                                currentRecipeId = null;
+                                cargarRecetas();
+                                const n = (respuesta.materializada_en || []).length;
+                                mostrarToast(n
+                                    ? 'Receta eliminada y copiada en ' + n + ' ' + (n === 1 ? 'receta' : 'recetas') + '.'
+                                    : 'Receta eliminada de todos los menús.', 'success');
+                            })
+                            .fail(function(err) {
+                                mostrarToast(((err.responseJSON || {}).error) || 'Error al eliminar la receta');
+                            });
+                    }, {
+                        textoBoton: padres.length ? 'Materializar y eliminar' : 'Eliminar de todos modos',
+                        lineas: lineas
+                    });
                 });
         }, { textoBoton: 'Eliminar' });
     }

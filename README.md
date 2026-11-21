@@ -17,6 +17,19 @@ Termux: gunicorn + Caddy) y también en local.
   nombres canónicos y se unifican alias (`atún en lata` → `atún en conserva`,
   `pimiento` → `pimiento rojo`, `huevos` → `huevo`). La lista de la compra
   agrupa los alias aunque las recetas antiguas los usen.
+- **Subrecetas**: un paso puede enlazar otra receta, así lo que se repite siempre
+  (cocer la pasta, el arroz, un sofrito) se define una sola vez. En el editor se
+  enlaza escribiendo el nombre en el buscador —lo que se guarda es un paso normal
+  con el enlace dentro— y el panel avisa si un ingrediente lo aporta ya la
+  subreceta para no contarlo dos veces. Los ingredientes de la subreceta **no se
+  duplican** en la receta padre: la lista de la compra los suma en cascada, aunque
+  el enlace esté a varios niveles, y los utensilios también cuentan. En el plan
+  semanal y en la ficha el enlace se ve como una etiqueta que abre la subreceta en
+  un modal, con breadcrumb para volver de donde se viene. Si la receta enlazada ya
+  no existe, no se rompe nada: se avisa en la página y en la API. Borrar una receta
+  que otras enlazan pide confirmación diciendo **cuántas recetas la usan**; al
+  confirmar, sus pasos, ingredientes y utensilios se copian en ellas
+  (`DELETE /menus/api/receta/<id>?force=1`) y siguen siendo recetas completas.
 - Generación de menús con LLM local (Strata, API compatible OpenAI) y campo de
   feedback libre del momento ("esta semana hazlo simple") inyectado en el prompt.
   La generación es **asíncrona**: el botón crea un trabajo en segundo plano y la
@@ -54,10 +67,12 @@ Termux: gunicorn + Caddy) y también en local.
 │   ├── llm.py              # Cliente Strata/OpenAI-compatible (texto y visión)
 │   ├── ingredientes.py     # Estandarización, alias y sugerencias de ingredientes
 │   ├── ingredientes_catalogo.json  # Catálogo canónico + alias (editable)
-│   ├── menus_helpers.py    # Dominio: fechas, ingredientes, validación CRUD
+│   ├── menus_helpers.py    # Dominio: fechas, ingredientes, validación CRUD, subrecetas
 │   └── tickets.py          # Análisis de fotos de tickets con visión
 ├── templates/              # base.html compartido + portal + menus/ + gastos/
 ├── static/css/custom.css   # y static/vendor/ (flatpickr)
+├── static/js/subrecetas.js # Pinta los enlaces a subreceta y abre su modal (lo usan
+│                           # el plan semanal y la ficha de receta)
 ├── data/                   # gitignoreado: menus/, recetas/, preferencias.json
 ├── deploy/phone/           # Caddyfile y start_all.sh del servidor de casa
 └── run.sh                  # start/stop/install (agnóstico Termux/Linux)
@@ -95,9 +110,16 @@ En local: `python app.py` (servidor de desarrollo en el puerto 5000).
 - `/` portal · `/menus` · `/menus/recetas` · `/menus/generar` · `/gastos`
 - Gastos: `GET /gastos/api/movimientos?desde=AAAA-MM-DD&hasta=AAAA-MM-DD&categoria=Casa&tipo=gasto&limit=500`,
   más `/gastos/api/resumen`, `/gastos/api/comparativa`, `/gastos/api/categorias`.
-- API: `/menus/api/menus`, `/menus/api/menu/<id>`, `/menus/api/recetas`,
-  `/menus/api/receta/<id>`, `/menus/api/preferencias`,
+- API: `/menus/api/menus`, `/menus/api/menu/<id>` (devuelve `avisos` con los enlaces
+  a subreceta que ya no existen), `/menus/api/recetas` (cada receta con `usada_por`:
+  las recetas que la enlazan), `/menus/api/receta/<id>`, `/menus/api/preferencias`,
   `/menus/api/ingredientes?q=<texto>` (sugerencias canónicas y alias)
+- Subrecetas: un paso enlaza otra receta con `[subreceta](id)` dentro de `pasos`
+  (sin columnas nuevas: es texto de un paso). `DELETE /menus/api/receta/<id>`
+  devuelve `409` con `recetas_que_la_usan` y `n_recetas` si otras recetas la
+  enlazan; con `?force=1` sus pasos, ingredientes y utensilios se materializan
+  primero en cada una (`materializada_en`). Un ciclo de enlaces se rechaza al
+  guardar (`400`).
 - Generación asíncrona: `POST /menus/api/generar` responde `202` con un `job`;
   `GET /menus/api/generar/<job_id>` devuelve su estado (`pendiente`, `en_proceso`,
   `terminado` o `error`) y `GET /menus/api/generar/activos` lista los trabajos

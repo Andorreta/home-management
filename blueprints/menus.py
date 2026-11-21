@@ -102,13 +102,36 @@ def api_menu(menu_name):
         mandatory_ingredients, optional_ingredients = helpers.get_shopping_list(
             {menu_name: menu}, recetas_data, exclusiones=despensa)
 
+        # Avisos: pasos que enlazan una receta que ya no existe (enlaces rotos)
+        avisos = []
+        vistos_rotos = set()
+        for dia in menu.get('dias', []) or []:
+            for clave in ('id_comida', 'id_cena'):
+                rid = dia.get(clave)
+                if not rid or rid == 'sobras' or rid not in recetas_data:
+                    continue
+                _, rotos = helpers.expandir_receta(rid, recetas_data)
+                for roto in rotos:
+                    clave_avisos = (roto['receta'], roto['enlace'])
+                    if clave_avisos in vistos_rotos:
+                        continue
+                    vistos_rotos.add(clave_avisos)
+                    avisos.append({
+                        'dia': dia.get('dia', ''),
+                        'plato': dia.get('comida' if clave == 'id_comida' else 'cena', ''),
+                        'receta': roto['receta'],
+                        'receta_nombre': (recetas_data.get(roto['receta']) or {}).get('nombre', roto['receta']),
+                        'enlace': roto['enlace'],
+                    })
+
         # Preparar datos para la respuesta
         menu_data = {
             'menu': menu,
             'mandatory_ingredients': mandatory_ingredients,
             'optional_ingredients': optional_ingredients,
             'despensa_base': despensa,
-            'recetas': recetas_data
+            'recetas': recetas_data,
+            'avisos': avisos,
         }
         return jsonify(menu_data)
     else:
@@ -132,8 +155,13 @@ def api_receta(receta_id):
 @bp.route('/api/recetas')
 def api_recetas():
     recetas_data = store().load_recetas()
+    usadas_por = helpers.indice_usadas_por(recetas_data)
     resultado = [
-        {'id': key, 'nombre': receta.get('nombre', key)}
+        {
+            'id': key,
+            'nombre': receta.get('nombre', key),
+            'usada_por': usadas_por.get(key, []),
+        }
         for key, receta in recetas_data.items()
     ]
     resultado.sort(key=lambda r: r['nombre'].lower())
@@ -194,11 +222,11 @@ def api_generar_estado(job_id):
 @bp.route('/api/recetas', methods=['POST'])
 def apicrear_receta():
     datos = request.get_json(silent=True) or {}
-    receta, error = helpers.validar_receta(datos)
+    recetas_data = store().load_recetas()
+    receta, error = helpers.validar_receta(datos, helpers.nombres_de(recetas_data))
     if error:
         return jsonify({'error': error}), 400
 
-    recetas_data = store().load_recetas()
     receta_id = str(datos.get('id') or '').strip()
     if receta_id:
         if not helpers.ID_RE.match(receta_id) or receta_id == 'sobras':
@@ -207,6 +235,10 @@ def apicrear_receta():
             return jsonify({'error': f'Ya existe una receta con id "{receta_id}"'}), 409
     else:
         receta_id = helpers.receta_id_disponible(receta['nombre'], recetas_data)
+
+    if helpers.hay_ciclo_subrecetas(receta_id, receta, recetas_data):
+        return jsonify({'error': 'Hay un bucle de subrecetas: una receta no puede enlazarse a sí misma '
+                                 '(ni directamente ni a través de otra).'}), 400
 
     store().save_receta(receta_id, receta)
     return jsonify({'ok': True, 'id': receta_id, 'receta': receta}), 201
@@ -220,9 +252,15 @@ def api_actualizar_receta(receta_id):
     if receta_id not in recetas_data:
         return jsonify({'error': 'Receta no encontrada'}), 404
 
-    receta, error = helpers.validar_receta(request.get_json(silent=True) or {})
+    receta, error = helpers.validar_receta(request.get_json(silent=True) or {},
+                                           helpers.nombres_de(recetas_data))
     if error:
         return jsonify({'error': error}), 400
+
+    if helpers.hay_ciclo_subrecetas(receta_id, receta, recetas_data):
+        return jsonify({'error': 'Hay un bucle de subrecetas: una receta no puede enlazarse a sí misma '
+                                 '(ni directamente ni a través de otra).'}), 400
+
     store().save_receta(receta_id, receta)
     return jsonify({'ok': True, 'id': receta_id, 'receta': receta})
 
@@ -231,18 +269,42 @@ def api_actualizar_receta(receta_id):
 def api_borrar_receta(receta_id):
     if not helpers.ID_RE.match(receta_id):
         return jsonify({'error': 'Id inválido'}), 400
-    if receta_id not in store().load_recetas():
+    recetas_data = store().load_recetas()
+    if receta_id not in recetas_data:
         return jsonify({'error': 'Receta no encontrada'}), 404
 
     en_uso = helpers.referencian_receta(store().load_menus(), receta_id)
-    if en_uso and not request.args.get('force'):
+    padres = helpers.subrecetas_usadas_por(recetas_data, receta_id)
+    if (en_uso or padres) and not request.args.get('force'):
+        mensaje = []
+        if padres:
+            mensaje.append(f'{len(padres)} ' + ('receta la usa' if len(padres) == 1
+                                               else 'recetas la usan') + ' como subreceta')
+        if en_uso:
+            mensaje.append('aparece en ' + f'{len(en_uso)} ' +
+                           ('menú guardado' if len(en_uso) == 1 else 'menús guardados'))
         return jsonify({
-            'error': 'La receta aparece en menús guardados',
+            'error': 'No se puede borrar: ' + ' y '.join(mensaje) + '.',
+            'recetas_que_la_usan': padres,
+            'n_recetas': len(padres),
             'menus': en_uso,
+            'n_menus': len(en_uso),
         }), 409
 
+    materializada_en = []
+    if padres:
+        # Al forzar, la subreceta se «materializa» antes de borrarla: sus pasos,
+        # ingredientes y utensilios pasan a las recetas que la enlazaban, que vuelven
+        # a ser autocontenidas y no pierden nada de la lista de la compra.
+        catalogo_nombres = helpers.nombres_de(recetas_data)
+        for pid in padres:
+            nuevo_padre = helpers.materializar_subreceta(
+                recetas_data[pid], receta_id, recetas_data, catalogo_nombres)
+            store().save_receta(pid, nuevo_padre)
+            materializada_en.append(pid)
+
     store().delete_receta(receta_id)
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, 'materializada_en': materializada_en})
 
 
 # --- CRUD de menús (fase 5) ---
