@@ -218,6 +218,19 @@
             const cadenaHija = cadena.concat([id]);
             let despuesDe = li;
             receta.pasos.forEach(function (paso) {
+                // Si el paso de la subreceta es SOLO un enlace a otra subreceta, no
+                // gasta un número propio: su chip se pega al de arriba («A → B») y los
+                // pasos de B se pegan aquí mismo, antes de lo que quede de A. Así
+                // «Pasta con atún y tomate → Pasta cocida» ocupa un solo paso.
+                if (despuesDe === li) {
+                    const encajado = resolverCrudo(enlaceSolitario(paso));
+                    if (encajado && encajado !== id && cadenaHija.indexOf(encajado) === -1 &&
+                        pilaAbierta.indexOf(encajado) === -1 && nivel + 1 < 5) {
+                        encadenarChip(li, id, catalogoCache[encajado] || encajado);
+                        expandirSubpasos(li, encajado, cadenaHija, nivel + 1);
+                        return;
+                    }
+                }
                 const re = new RegExp(MARCADOR.source, 'g');
                 const crudos = [];
                 let m;
@@ -233,6 +246,39 @@
                 desplegarEnlaces(sub, cadenaHija, nivel + 1);
             });
         });
+    }
+
+    // ¿El paso es únicamente un enlace a otra subreceta (sin texto alrededor)?
+    function enlaceSolitario(paso) {
+        const s = String(paso == null ? '' : paso).trim();
+        if (OPCIONAL.test(s)) return null;
+        const m = s.match(/^\[subreceta\]\(\s*([^)]*?)\s*\)$/);
+        return m ? String(m[1] || '').trim() : null;
+    }
+
+    // id resuelto del catálogo, o null si la receta no existe.
+    function resolverCrudo(crudo) {
+        if (!crudo) return null;
+        const id = resolverEnCatalogo(crudo, catalogoCache) ||
+                   (/^[a-z0-9_]+$/.test(crudo) ? crudo : null);
+        return id && catalogoCache[id] !== undefined ? id : null;
+    }
+
+    // Añade «→ Título» al chip del paso que enlaza la subreceta `id`.
+    function encadenarChip(li, id, etiqueta) {
+        let chip = null;
+        if (/^[a-z0-9_]+$/.test(id)) {
+            chip = li.querySelector('.subreceta-chip[data-subreceta="' + id + '"]');
+        }
+        if (!chip) {
+            const chips = li.querySelectorAll('.subreceta-chip');
+            chip = chips.length === 1 ? chips[0] : null;   // con varios, no adivinamos
+        }
+        if (!chip || chip.querySelector('.subreceta-chip-flecha')) return;
+        chip.insertAdjacentHTML('beforeend',
+            '<span class="subreceta-chip-flecha" aria-hidden="true">→</span>' +
+            '<span class="subreceta-chip-nombre">' + esc(etiqueta) + '</span>');
+        chip.setAttribute('title', 'Subrecetas: ' + chip.textContent.trim());
     }
 
     // Si los pasos se pintaron antes de que el catálogo estuviera listo, al
@@ -486,15 +532,21 @@
 
     // --- Ingredientes con sustitutos: «pasta[altern("pasta fresca", "ñoquis")]» ---
     // Se muestra «pasta / pasta fresca / ñoquis»: el base va igual que siempre y
-    // los sustitutos, en gris, detrás con barras. Espejo de ALTERN_RE del servidor.
+    // los sustitutos, en gris, detrás con barras. Cada sustituto puede llevar su
+    // propia cantidad tras una barra vertical: «"mantequilla|30 g"».
+    // Espejo de ALTERN_RE del servidor.
 
     const ALTERN = /\s*\[altern\(([^\]]*)\)\]/;
 
     function alternativaNombres(clave) {
         const s = String(clave == null ? '' : clave);
         const m = s.match(ALTERN);
-        const alts = m ? m[1].split(',').map(function (a) { return a.trim().replace(/^"|"$/g, ''); })
-                              .filter(Boolean) : [];
+        const alts = m ? m[1].split(',').map(function (a) {
+            a = a.trim().replace(/^"|"$/g, '');
+            const i = a.indexOf('|');
+            if (i === -1) return { nombre: a.trim(), cantidad: '' };
+            return { nombre: a.slice(0, i).trim(), cantidad: a.slice(i + 1).trim() };
+        }).filter(function (a) { return a.nombre; }) : [];
         return { base: s.replace(ALTERN, '').trim(), alts: alts };
     }
 
@@ -502,7 +554,10 @@
         const p = alternativaNombres(clave);
         let html = '<strong>' + esc(p.base) + '</strong>';
         if (p.alts.length) {
-            html += '<span class="ing-alternativos"> / ' + p.alts.map(esc).join(' / ') + '</span>';
+            html += '<span class="ing-alternativos"> / ' + p.alts.map(function (a) {
+                return esc(a.nombre) +
+                       (a.cantidad ? ' <span class="ing-altern-cantidad">' + esc(a.cantidad) + '</span>' : '');
+            }).join(' / ') + '</span>';
         }
         return html;
     }

@@ -1009,8 +1009,46 @@ summary:hover {
     font-weight: 400;
 }
 
-.ing-altern {
-    font-size: 0.9rem;
+.ing-altern-cantidad {
+    color: #8a6d1c;
+    white-space: nowrap;
+}
+
+/* Chip encadenado: el paso es una subreceta cuyo primer paso es otra subreceta,
+   y se muestran juntas en el mismo paso («Pasta con atún y tomate → Pasta cocida») */
+.subreceta-chip-flecha {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+/* Fila de un sustituto en el editor: «o [nombre] [cantidad] ×» */
+.altern-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+}
+
+.altern-o {
+    color: #6c757d;
+    font-size: 0.85rem;
+    flex: 0 0 auto;
+}
+
+.altern-nombre {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.altern-cantidad {
+    flex: 0 0 5rem;
+    width: 5rem;
+}
+
+.altern-add {
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 0;
 }
 
 /* Buscador que abre el botón de enlace, justo debajo de su paso */

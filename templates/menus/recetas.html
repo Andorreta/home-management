@@ -381,21 +381,47 @@
         return { val: '', unidad: s };
     }
 
-    // "pasta[altern(\"pasta fresca\", \"ñoquis\")]" → {nombre:'pasta', alts:[…]}
+    // "pasta[altern(\"pasta fresca\", \"mantequilla|30 g\")]" → {nombre:'pasta', alts:[…]}
+    // Cada sustituto puede traer su cantidad detrás de una barra vertical.
     const ALTERN_RE = /\s*\[altern\(([^\]]*)\)\]/;
 
     function descomponAlternativas(clave) {
         const s = String(clave || '');
         const m = s.match(ALTERN_RE);
         if (!m) return { nombre: s.trim(), alts: [] };
-        const alts = m[1].split(',').map(function (a) { return a.trim().replace(/^"|"$/g, ''); })
-                              .filter(Boolean);
+        const alts = m[1].split(',').map(function (a) {
+            a = a.trim().replace(/^"|"$/g, '');
+            const i = a.indexOf('|');
+            if (i === -1) return { nombre: a.trim(), cantidad: '' };
+            return { nombre: a.slice(0, i).trim(), cantidad: a.slice(i + 1).trim() };
+        }).filter(function (a) { return a.nombre; });
         return { nombre: s.replace(ALTERN_RE, ' ').replace(/\s+/g, ' ').trim(), alts: alts };
     }
 
     function componerClave(nombre, alts) {
-        if (!alts.length) return nombre;
-        return nombre + '[altern(' + alts.map(function (a) { return '"' + a + '"'; }).join(', ') + ')]';
+        const limpias = alts.map(function (a) {
+            const n = String(a && a.nombre != null ? a.nombre : a).trim().replace(/\|/g, ' ').replace(/\s+/g, ' ');
+            const c = String(a && a.cantidad != null ? a.cantidad : '').trim().replace(/\|/g, ' ').replace(/\s+/g, ' ');
+            if (!n) return '';
+            return c ? n + '|' + c : n;
+        }).filter(Boolean);
+        if (!limpias.length) return nombre;
+        return nombre + '[altern(' + limpias.map(function (a) { return '"' + a + '"'; }).join(', ') + ')]';
+    }
+
+    // Fila de un sustituto: nombre + cantidad propia + quitar. Con el botón «+»
+    // se pueden añadir varios sustitutos a un mismo ingrediente.
+    function filaAlternativo(alt) {
+        alt = alt || {};
+        return '<div class="altern-row">' +
+            '<span class="altern-o" aria-hidden="true">o</span>' +
+            '<input type="text" class="form-control form-control-sm altern-nombre" autocomplete="off" ' +
+            'aria-label="Nombre del sustituto" placeholder="mantequilla">' +
+            '<input type="text" class="form-control form-control-sm altern-cantidad" autocomplete="off" ' +
+            'aria-label="Cantidad del sustituto" placeholder="30 g">' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm altern-del" title="Quitar sustituto" ' +
+            'aria-label="Quitar sustituto"><i class="fas fa-times" aria-hidden="true"></i></button>' +
+            '</div>';
     }
 
     function agregarIngrediente(nombre, cantidad, opcional) {
@@ -405,7 +431,8 @@
         const fila = $('<div class="row g-2 mb-2 ing-row">' +
             '<div class="col-md-4 ing-nombre-col">' +
             '<input type="text" class="form-control ing-nombre" autocomplete="off" aria-label="Nombre del ingrediente" aria-autocomplete="list" aria-expanded="false" placeholder="aceite de oliva">' +
-            '<input type="text" class="form-control ing-altern mt-1" autocomplete="off" aria-label="Sustitutos del ingrediente, separados por comas" placeholder="sustitutos, con comas: pasta fresca, ñoquis">' +
+            '<div class="ing-alterns mt-1"></div>' +
+            '<button type="button" class="btn btn-link btn-sm altern-add ps-0" aria-label="Añadir sustituto">+ sustituto</button>' +
             '<div class="ing-sugerencias" role="listbox" aria-label="Sugerencias de ingredientes" hidden></div>' +
             '<div class="ing-hint small mt-1" hidden></div>' +
             '</div>' +
@@ -417,8 +444,14 @@
             '<label class="small mb-0">opc.<input type="checkbox" class="form-check-input ing-opcional ms-1"></label>' +
             '<button type="button" class="btn btn-outline-secondary btn-sm" title="Quitar" aria-label="Quitar ingrediente" onclick="$(this).closest(\'.ing-row\').remove()"><i class="fas fa-times" aria-hidden="true"></i></button>' +
             '</div></div>');
-        fila.find('.ing-nombre').val(descomponAlternativas(nombre).nombre);
-        fila.find('.ing-altern').val(descomponAlternativas(nombre).alts.join(', '));
+        const descompuesto = descomponAlternativas(nombre);
+        fila.find('.ing-nombre').val(descompuesto.nombre);
+        descompuesto.alts.forEach(function (alt) {
+            const f = $(filaAlternativo(alt));
+            f.find('.altern-nombre').val(alt.nombre);
+            f.find('.altern-cantidad').val(alt.cantidad);
+            fila.find('.ing-alterns').append(f);
+        });
         const c = descomponCantidad(cantidad);
         fila.find('.ing-val').val(c.val);
         const select = fila.find('.ing-unidad');
@@ -514,6 +547,16 @@
         ocultarSugerencias(input[0]);
         input.trigger('change');
         input.focus();
+    });
+
+    // Un ingrediente puede tener varios sustitutos: cada «+ sustituto» añade una
+    // fila (nombre + su cantidad) y la «×» la quita.
+    $(document).on('click', '.altern-add', function () {
+        $(this).closest('.ing-nombre-col').find('.ing-alterns').append(filaAlternativo());
+    });
+
+    $(document).on('click', '.altern-del', function () {
+        $(this).closest('.altern-row').remove();
     });
 
     $(document).on('keydown', '.ing-nombre', function(e) {
@@ -1117,8 +1160,12 @@
         $('#rc-ingredientes .ing-row').each(function() {
             const nombre = $(this).find('.ing-nombre').val().trim();
             if (!nombre) return;
-            const alts = ($(this).find('.ing-altern').val() || '')
-                .split(',').map(function (a) { return a.trim().replace(/"/g, ''); }).filter(Boolean);
+            const alts = [];
+            $(this).find('.altern-row').each(function () {
+                const n = $(this).find('.altern-nombre').val().trim().replace(/"/g, '');
+                if (!n) return;
+                alts.push({ nombre: n, cantidad: $(this).find('.altern-cantidad').val().trim().replace(/"/g, '') });
+            });
             const clave = componerClave(nombre, alts);
             const val = $(this).find('.ing-val').val().trim().replace(',', '.');
             const unidad = $(this).find('.ing-unidad').val() || '';
