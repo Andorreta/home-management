@@ -54,13 +54,28 @@
                 <div class="modal-body">
                     <input type="hidden" id="rc-id-original">
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        <div class="col-12">
                             <label class="form-label" for="rc-nombre">Nombre *</label>
-                            <input type="text" id="rc-nombre" class="form-control" required>
+                            <input type="text" id="rc-nombre" class="form-control" required
+                                   placeholder="Tortilla de champiñones">
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label" for="rc-id">Id <span class="text-muted small">(opcional, se genera del nombre)</span></label>
-                            <input type="text" id="rc-id" class="form-control" placeholder="pollo_al_curry">
+                        <div class="col-12">
+                            <details class="rc-avanzado">
+                                <summary><i class="fas fa-gear"></i> Avanzado</summary>
+                                <div class="row g-2 mt-1">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="rc-id">Id de la receta</label>
+                                        <input type="text" id="rc-id" class="form-control"
+                                               placeholder="se genera del nombre"
+                                               pattern="[a-z0-9_]+"
+                                               title="Solo letras minúsculas, números y guiones bajos: sin acentos ni símbolos.">
+                                        <div class="form-text">
+                                            No se ve en pantalla: solo sirve para enlazar recetas entre sí.
+                                            Se genera solo a partir del nombre; rellénelo solo si sabe lo que hace.
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
                         </div>
                         <div class="col-12">
                             <div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div>
@@ -75,12 +90,29 @@
                             </button>
                         </div>
                         <div class="col-md-5">
-                            <label class="form-label" for="rc-utensilios"><i class="fas fa-blender"></i> Utensilios <span class="text-muted small">(uno por línea)</span></label>
-                            <textarea id="rc-utensilios" class="form-control" rows="6" placeholder="Cazuela&#10;Sartén"></textarea>
+                            <div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>
+                            <p class="text-muted small mb-2">
+                                <i class="fas fa-info-circle"></i> Uno por caja.
+                                <i class="fas fa-plus"></i> añade otra y
+                                <i class="fas fa-times"></i> la quita; <kbd>Intro</kbd> también añade.
+                            </p>
+                            <div id="rc-utensilios-lista" class="fila-lista"></div>
                         </div>
                         <div class="col-md-7">
-                            <label class="form-label" for="rc-pasos"><i class="fas fa-clipboard-list"></i> Pasos <span class="text-muted small">(uno por línea)</span></label>
-                            <textarea id="rc-pasos" class="form-control" rows="6" placeholder="Pica la cebolla..."></textarea>
+                            <div class="section-title"><i class="fas fa-clipboard-list"></i> Pasos</div>
+                            <p class="text-muted small mb-2">
+                                <i class="fas fa-info-circle"></i> Uno por caja: la caja se hace más alta sola
+                                si el paso es largo, pero es mejor separar en pasos lo que se pueda.
+                                <i class="fas fa-plus"></i> añade, <i class="fas fa-times"></i> quita y
+                                <i class="fas fa-arrow-up"></i><i class="fas fa-arrow-down"></i> mueven de sitio.
+                            </p>
+                            <div id="rc-pasos-lista" class="fila-lista"></div>
+                            <button class="btn btn-primary btn-sm mt-2" type="button" onclick="agregarFila('pasos', '', true)">
+                                <i class="fas fa-plus"></i> Añadir paso
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm mt-2" type="button" onclick="agregarFila('utensilios', '', true)">
+                                <i class="fas fa-plus"></i> Añadir utensilio
+                            </button>
 
                             <div class="sub-insert">
                                 <label class="form-label small" for="rc-sub-buscar">
@@ -99,8 +131,8 @@
                                          aria-label="Recetas para enlazar" hidden></div>
                                 </div>
                                 <div class="d-flex gap-2 mt-2 flex-wrap">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarSubreceta('cursor')">
-                                        <i class="fas fa-thumbtack"></i> En el cursor
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarSubreceta('destino')">
+                                        <i class="fas fa-thumbtack"></i> En el paso marcado
                                     </button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="insertarSubreceta('paso')">
                                         <i class="fas fa-plus"></i> Como paso nuevo
@@ -204,7 +236,7 @@
         $('#recipe-list-card').hide();
         $('#recetaBtn').attr('aria-expanded', 'false');
 
-        $.get('/menus/api/receta/' + id)
+        $.get('/menus/api/receta/' + encodeURIComponent(id))
             .done(function(receta) {
                 displayRecipe(receta);
             })
@@ -230,13 +262,15 @@
         return '';
     }
 
-    function buildIngredientListHtml(ingredientes) {
-        if (!ingredientes || Object.keys(ingredientes).length === 0) {
+    function buildIngredientListHtml(ingredientes, aportes) {
+        const propios = ingredientes || {};
+        const extras = window.aportesExtras ? window.aportesExtras(aportes, Object.keys(propios)) : [];
+        if (!Object.keys(propios).length && !extras.length) {
             return '<p class="text-muted"><i class="fas fa-info-circle"></i> Ninguno</p>';
         }
         let html = '<ul class="ingredient-list">';
-        for (let ingrediente in ingredientes) {
-            const data = ingredientes[ingrediente];
+        for (let ingrediente in propios) {
+            const data = propios[ingrediente];
             let opcional = false;
             if (data && typeof data === 'object') {
                 opcional = data.opcional === true;
@@ -248,19 +282,37 @@
             const qtyStr = cleanQty ? ': ' + escapeHtml(cleanQty) : '';
             const optStr = opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '';
             const optionalClass = opcional ? ' optional-ingredient' : '';
-            html += '<li class="' + optionalClass + '"><strong>' + escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr + '</li>';
+            // Lo que llega de una receta enlazada se marca aparte para que no se repita
+            const aporte = window.aportesEtiqueta
+                ? window.aportesEtiqueta(window.aportesDe(aportes, ingrediente)) : '';
+            html += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '"><strong>' +
+                    escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr +
+                    (aporte ? ' ' + aporte : '') + '</li>';
         }
+        extras.forEach(function (extra) {
+            html += '<li class="item-aportado"><strong>' + escapeHtml(extra.clave) + '</strong> ' +
+                    (window.aportesEtiqueta ? window.aportesEtiqueta(extra.nombres) : '') + '</li>';
+        });
         html += '</ul>';
         return html;
     }
 
-    function buildUtensiliosHtml(utensilios) {
-        if (!utensilios || utensilios.length === 0) {
+    function buildUtensiliosHtml(utensilios, aportes) {
+        const propios = utensilios || [];
+        const extras = window.aportesExtras ? window.aportesExtras(aportes, propios) : [];
+        if (!propios.length && !extras.length) {
             return '<p class="text-muted"><i class="fas fa-info-circle"></i> Ninguno</p>';
         }
         let html = '<ul class="ingredient-list">';
-        utensilios.forEach(function(u) {
-            html += '<li>' + escapeHtml(u) + '</li>';
+        propios.forEach(function (u) {
+            const aporte = window.aportesEtiqueta
+                ? window.aportesEtiqueta(window.aportesDe(aportes, u)) : '';
+            html += '<li class="' + (aporte ? 'item-aportado' : '') + '">' + escapeHtml(u) +
+                    (aporte ? ' ' + aporte : '') + '</li>';
+        });
+        extras.forEach(function (extra) {
+            html += '<li class="item-aportado">' + escapeHtml(extra.clave) + ' ' +
+                    (window.aportesEtiqueta ? window.aportesEtiqueta(extra.nombres) : '') + '</li>';
         });
         html += '</ul>';
         return html;
@@ -271,20 +323,22 @@
         html += '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">';
         html += '<h3 class="mb-0"><i class="fas fa-utensil-spoon"></i> ' + escapeHtml(receta.nombre || currentRecipeId) + '</h3>';
         html += '<div class="btn-group">';
+        // El id viene del almacén y solo trae [a-z0-9_], así que va seguro dentro del onclick
         html += '<button class="btn btn-outline-primary btn-sm" onclick="abrirModalReceta(\'' + currentRecipeId + '\')"><i class="fas fa-pen"></i> Editar</button>';
         html += '<button class="btn btn-outline-danger btn-sm" onclick="borrarReceta(\'' + currentRecipeId + '\')"><i class="fas fa-trash"></i> Eliminar</button>';
         html += '</div>';
         html += '</div>';
 
-        // Arriba: ingredientes + utensilios
+        // Arriba: ingredientes + utensilios (los de las recetas enlazadas van marcados con su origen)
+        const aportes = receta.aportes_subrecetas || {};
         html += '<div class="row recipe-top">';
         html += '<div class="col-md-6">';
         html += '<div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div>';
-        html += buildIngredientListHtml(receta.ingredientes);
+        html += buildIngredientListHtml(receta.ingredientes, aportes.ingredientes);
         html += '</div>';
         html += '<div class="col-md-6">';
         html += '<div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>';
-        html += buildUtensiliosHtml(receta.utensilios);
+        html += buildUtensiliosHtml(receta.utensilios, aportes.utensilios);
         html += '</div>';
         html += '</div>';
 
@@ -304,6 +358,9 @@
             html += '<div class="section-title"><i class="fas fa-sticky-note"></i> Notas</div>';
             html += '<p>' + escapeHtml(receta.notas) + '</p>';
         }
+
+        // Qué recetas enlazadas hay y qué traen cada una (ya cuentan para la compra)
+        if (window.aportesResumen) html += window.aportesResumen(receta.aportes_subrecetas);
 
         // Recetas que la enlazan como subreceta (índice inverso del catálogo)
         const guardada = allRecipes.find(r => r.id === currentRecipeId) || {};
@@ -530,16 +587,21 @@
         }
 
         const marcador = '[subreceta](' + subSeleccion.id + ')';
-        const paso = document.getElementById('rc-pasos');
         if (modo === 'paso') {
-            const valor = paso.value.replace(/\s+$/, '');
-            paso.value = (valor ? valor + '\n' : '') + marcador + '\n';
+            marcarFilaParaSub(agregarFila('pasos', marcador, true));
         } else {
-            const ini = paso.selectionStart, fin = paso.selectionEnd;
-            paso.value = paso.value.slice(0, ini) + marcador + paso.value.slice(fin);
-            paso.selectionStart = paso.selectionEnd = ini + marcador.length;
+            // «En el paso marcado»: la caja señalada, o la que se estaba editando
+            const fila = (filaSubDestino && filaSubDestino.isConnected)
+                ? filaSubDestino : filasDe('pasos').slice(-1)[0];
+            if (!fila) {
+                marcarFilaParaSub(agregarFila('pasos', marcador, true));
+            } else {
+                const caja = fila.querySelector('.fila-input');
+                caja.value = caja.value.trim() ? caja.value.trim() + ' ' + marcador : marcador;
+                autoAltura(caja);
+                marcarFilaParaSub(fila);
+            }
         }
-        paso.focus();
         refrescarEnlacesSub();
     }
 
@@ -547,7 +609,7 @@
     function refrescarEnlacesSub() {
         const mapa = mapaCatalogo();
         const editando = $('#rc-id-original').val();
-        const texto = $('#rc-pasos').val() || '';
+        const texto = textoFilas('pasos');
         const re = new RegExp(MARCADOR_SUB.source, 'g');
 
         const enlazadas = [];
@@ -636,11 +698,6 @@
         setTimeout(function () { if (caja.find('.ing-sug-item:hover').length === 0) ocultarSugerenciasSub(); }, 150);
     });
 
-    $(document).on('input', '#rc-pasos', function () {
-        if (this._subTimer) clearTimeout(this._subTimer);
-        this._subTimer = setTimeout(refrescarEnlacesSub, 250);
-    });
-
     // Los avisos de duplicados dependen también de los ingredientes: al tocar las filas
     // (escribir, elegir una sugerencia o quitar la fila) se vuelve a comprobar.
     let subTimerIngredientes = null;
@@ -652,10 +709,245 @@
     $(document).on('input', '#rc-ingredientes .ing-nombre', refrescarEnlacesSubPronto);
     $(document).on('click', '#rc-ingredientes button', refrescarEnlacesSubPronto);
 
+    // --- Pasos y utensilios: una caja por elemento, con botones para añadir y quitar ---
+    //
+    // Antes era un solo textarea con una línea por paso, y con pasos largos resultaba
+    // incómodo (la línea no cabía entera). Ahora cada paso es su propia caja, que se
+    // hace más alta sola según lo que se escribe; lo que sobre se separa en otro paso.
+
+    const FILAS = {
+        pasos:      { contenedor: 'rc-pasos-lista',      placeholder: 'Pica la cebolla y sofríela a fuego suave…', paso: true },
+        utensilios: { contenedor: 'rc-utensilios-lista', placeholder: 'Cazuela', paso: false }
+    };
+
+    // Fila de la lista: su número (solo en pasos), su caja y sus botones
+    function cajaFila(tipo, valor) {
+        const cfg = FILAS[tipo];
+        const fila = document.createElement('div');
+        fila.className = 'fila-item';
+        fila.dataset.tipo = tipo;
+        const partes = [];
+        if (cfg.paso) partes.push('<span class="fila-num" aria-hidden="true"></span>');
+        partes.push('<textarea class="form-control fila-input" rows="1" placeholder="' +
+                    cfg.placeholder + '">' + escapeHtml(valor || '') + '</textarea>');
+        const botones = [];
+        if (cfg.paso) botones.push(['sub', 'fa-diagram-project', 'Enlazar una subreceta a este paso']);
+        botones.push(['arriba', 'fa-arrow-up', 'Subir este elemento']);
+        botones.push(['abajo', 'fa-arrow-down', 'Bajar este elemento']);
+        botones.push(['add', 'fa-plus', 'Añadir otra caja debajo']);
+        botones.push(['del', 'fa-times', 'Quitar esta caja']);
+        partes.push('<div class="fila-acciones">' + botones.map(function (b) {
+            return '<button type="button" class="btn fila-btn" data-accion="' + b[0] + '" ' +
+                   'title="' + b[2] + '" aria-label="' + b[2] + '"><i class="fas ' + b[1] + '"></i></button>';
+        }).join('') + '</div>');
+        fila.innerHTML = partes.join('');
+        return fila;
+    }
+
+    function filasDe(tipo) {
+        return Array.from(document.querySelectorAll('#' + FILAS[tipo].contenedor + ' > .fila-item'));
+    }
+
+    function autoAltura(caja) {
+        caja.style.height = 'auto';
+        // Crece hacia abajo sin límite práctico (hay pasos de 250 caracteres); el modal
+        // ya se encarga de que la lista entre en la pantalla.
+        caja.style.height = Math.min(caja.scrollHeight + 2, 600) + 'px';
+    }
+
+    // Con el modal cerrado scrollHeight vale 0: las alturas se recalculan al abrirlo
+    // (y al cambiar el ancho de la ventana, porque el texto se reparte distinto).
+    function ajustarAlturasFilas() {
+        document.querySelectorAll('.fila-input').forEach(autoAltura);
+    }
+
+    let ajusteAlCambiarVentana = null;
+    $(window).on('resize', function () {
+        if (ajusteAlCambiarVentana) clearTimeout(ajusteAlCambiarVentana);
+        ajusteAlCambiarVentana = setTimeout(ajustarAlturasFilas, 150);
+    });
+
+    // Al terminar de abrir el modal es cuando las cajas tienen sitio medible
+    $('#receta-modal').on('shown.bs.modal', ajustarAlturasFilas);
+
+    function refrescarFilas(tipo) {
+        const filas = filasDe(tipo);
+        filas.forEach(function (fila, i) {
+            const num = fila.querySelector('.fila-num');
+            if (num) num.textContent = (i + 1) + '.';
+            const arriba = fila.querySelector('[data-accion="arriba"]');
+            const abajo = fila.querySelector('[data-accion="abajo"]');
+            const del = fila.querySelector('[data-accion="del"]');
+            // Con una sola caja no hay nada que quitar ni mover: esos botones se ocultan.
+            const hayQueMover = filas.length > 1;
+            arriba.hidden = !hayQueMover;
+            abajo.hidden = !hayQueMover;
+            del.hidden = !hayQueMover;
+            arriba.disabled = i === 0;
+            abajo.disabled = i === filas.length - 1;
+        });
+    }
+
+    function agregarFila(tipo, valor, enfocar) {
+        const fila = cajaFila(tipo, valor);
+        document.getElementById(FILAS[tipo].contenedor).appendChild(fila);
+        const caja = fila.querySelector('.fila-input');
+        autoAltura(caja);
+        refrescarFilas(tipo);
+        if (enfocar) caja.focus();
+        return fila;
+    }
+
+    // Valor de cada caja tal cual está (para buscar los marcadores [subreceta])
+    function textoFilas(tipo) {
+        return filasDe(tipo).map(function (f) { return f.querySelector('.fila-input').value; }).join('\n');
+    }
+
+    // Lo que se guarda: en orden, sin espacios sobrantes y sin cajas vacías
+    function valoresFilas(tipo) {
+        return filasDe(tipo)
+            .map(function (f) { return f.querySelector('.fila-input').value.trim(); })
+            .filter(function (v) { return v; });
+    }
+
+    // Rellenar las cajas al editar. Acepta array (lo de siempre) y el texto viejo de
+    // una por línea, por si alguna receta antiga viene guardada así.
+    function ponerFilas(tipo, valores) {
+        document.getElementById(FILAS[tipo].contenedor).innerHTML = '';
+        const lista = Array.isArray(valores) ? valores : String(valores == null ? '' : valores).split('\n');
+        lista.forEach(function (v) {
+            const texto = String(v == null ? '' : v);
+            if (texto.trim()) agregarFila(tipo, texto, false);
+        });
+        if (!filasDe(tipo).length) agregarFila(tipo, '', false);
+    }
+
+    // A qué paso irá el próximo enlace cuando se use «En el paso marcado»
+    let filaSubDestino = null;
+
+    function marcarFilaParaSub(fila) {
+        filaSubDestino = fila;
+        document.querySelectorAll('.fila-item.fila-destino').forEach(function (el) {
+            el.classList.remove('fila-destino');
+        });
+        fila.classList.add('fila-destino');
+        const numero = filasDe('pasos').indexOf(fila) + 1;
+        const enlazadas = $('#rc-sub-info').html();
+        $('#rc-sub-info').html('<span class="sub-info-titulo"><i class="fas fa-thumbtack"></i> ' +
+                               'Paso ' + numero + ' seleccionado:</span> ' +
+                               'escribe el nombre de la receta y elígela.' +
+                               (enlazadas ? '<br>' + enlazadas : ''));
+        pintarSugerenciasSub();
+        document.getElementById('rc-sub-buscar').focus();
+    }
+
+    // Al escribir en una caja su altura es la del texto; y si pega varias líneas,
+    // cada línea se convierte en su propia caja.
+    $(document).on('input', '.fila-input', function () {
+        autoAltura(this);
+        if (this._subTimer) clearTimeout(this._subTimer);
+        this._subTimer = setTimeout(refrescarEnlacesSub, 250);
+    });
+
+    $(document).on('paste', '.fila-input', function (e) {
+        const dato = e.originalEvent && e.originalEvent.clipboardData;
+        const texto = dato ? dato.getData('text') : '';
+        if (!texto || texto.indexOf('\n') === -1) return;
+        e.preventDefault();
+        const fila = this.closest('.fila-item');
+        const tipo = fila.dataset.tipo;
+        const trozos = texto.split(/\r?\n/).map(function (t) { return t.trim(); }).filter(Boolean);
+        if (!trozos.length) return;
+        if (this.value.trim()) {
+            this.value = this.value.trim() + ' ' + trozos.shift();
+            autoAltura(this);
+        } else {
+            this.value = trozos.shift();
+            autoAltura(this);
+        }
+        let ultima = fila;
+        trozos.forEach(function (t) {
+            ultima = cajaFila(tipo, t);
+            fila.after(ultima);
+            autoAltura(ultima.querySelector('.fila-input'));
+        });
+        refrescarFilas(tipo);
+        refrescarEnlacesSubPronto();
+    });
+
+    $(document).on('keydown', '.fila-input', function (e) {
+        const fila = this.closest('.fila-item');
+        const tipo = fila.dataset.tipo;
+        if (e.key === 'Enter' && !e.shiftKey) {
+            // Intro = paso nuevo (Shift+Intro sigue haciendo un salto de línea dentro del paso)
+            e.preventDefault();
+            const nueva = cajaFila(tipo, '');
+            fila.after(nueva);
+            autoAltura(nueva.querySelector('.fila-input'));
+            refrescarFilas(tipo);
+            nueva.querySelector('.fila-input').focus();
+        } else if (e.key === 'Backspace' && this.value === '' && filasDe(tipo).length > 1) {
+            e.preventDefault();
+            const anterior = fila.previousElementSibling || fila.nextElementSibling;
+            if (fila === filaSubDestino) filaSubDestino = null;
+            fila.remove();
+            refrescarFilas(tipo);
+            if (anterior) {
+                const caja = anterior.querySelector('.fila-input');
+                caja.focus();
+                caja.setSelectionRange(caja.value.length, caja.value.length);
+            }
+            refrescarEnlacesSubPronto();
+        }
+    });
+
+    $(document).on('click', '.fila-acciones button', function () {
+        const fila = this.closest('.fila-item');
+        const tipo = fila.dataset.tipo;
+        const accion = this.dataset.accion;
+        if (accion === 'sub') { marcarFilaParaSub(fila); return; }
+        if (accion === 'add') {
+            const nueva = cajaFila(tipo, '');
+            fila.after(nueva);
+            autoAltura(nueva.querySelector('.fila-input'));
+            refrescarFilas(tipo);
+            nueva.querySelector('.fila-input').focus();
+        } else if (accion === 'del') {
+            if (filasDe(tipo).length === 1) {
+                const caja = fila.querySelector('.fila-input');
+                caja.value = '';
+                autoAltura(caja);
+                caja.focus();
+            } else {
+                const anterior = fila.previousElementSibling || fila.nextElementSibling;
+                if (fila === filaSubDestino) filaSubDestino = null;
+                fila.remove();
+                refrescarFilas(tipo);
+                if (anterior) anterior.querySelector('.fila-input').focus();
+            }
+            refrescarEnlacesSubPronto();
+            return;
+        } else if (accion === 'arriba' && fila.previousElementSibling) {
+            fila.parentNode.insertBefore(fila, fila.previousElementSibling);
+        } else if (accion === 'abajo' && fila.nextElementSibling) {
+            fila.parentNode.insertBefore(fila.nextElementSibling, fila);
+        }
+        refrescarFilas(tipo);
+        refrescarEnlacesSubPronto();
+    });
+
+    // Si no se marca otro, el enlace va al paso que se está editando
+    $(document).on('focusin', '#rc-pasos-lista .fila-input', function () {
+        filaSubDestino = this.closest('.fila-item');
+    });
+
     function abrirModalReceta(id) {
         $('#rc-error').hide();
         $('#receta-form')[0].reset();
         $('#rc-ingredientes').empty();
+        ponerFilas('utensilios', []);
+        ponerFilas('pasos', []);
+        filaSubDestino = null;
         $('#rc-id-original').val(id || '');
         subSeleccion = null;
         Object.keys(subDetalleCache).forEach(function (k) { delete subDetalleCache[k]; });
@@ -667,7 +959,7 @@
             // Edición: cargamos la receta SIN normalizar (raw) para no alterar los datos
             $('#receta-modal-titulo').html('<i class="fas fa-pen"></i> Editar receta');
             $('#rc-id').val(id).prop('readonly', true);
-            $.get('/menus/api/receta/' + id + '?raw=1')
+            $.get('/menus/api/receta/' + encodeURIComponent(id) + '?raw=1')
                 .done(function(r) {
                     $('#rc-nombre').val(r.nombre || '');
                     Object.entries(r.ingredientes || {}).forEach(function([k, v]) {
@@ -682,8 +974,8 @@
                         }
                         agregarIngrediente(k, cantidad, opcional);
                     });
-                    $('#rc-utensilios').val((r.utensilios || []).join('\n'));
-                    $('#rc-pasos').val((r.pasos || []).join('\n'));
+                    ponerFilas('utensilios', r.utensilios);
+                    ponerFilas('pasos', r.pasos);
                     if (!Object.keys(r.ingredientes || {}).length) agregarIngrediente('', '', false);
                     refrescarEnlacesSub();
                     recetaModal.show();
@@ -719,18 +1011,17 @@
             return false;
         }
 
-        const lines = (sel) => ($(sel).val() || '').split('\n').map(s => s.trim()).filter(Boolean);
         const idOriginal = $('#rc-id-original').val();
         const cuerpo = {
             nombre: $('#rc-nombre').val().trim(),
             ingredientes: ingredientes,
-            utensilios: lines('#rc-utensilios'),
-            pasos: lines('#rc-pasos')
+            utensilios: valoresFilas('utensilios'),
+            pasos: valoresFilas('pasos')
         };
 
         let url, metodo;
         if (idOriginal) {
-            url = '/menus/api/receta/' + idOriginal;
+            url = '/menus/api/receta/' + encodeURIComponent(idOriginal);
             metodo = 'PUT';
         } else {
             url = '/menus/api/recetas';
@@ -764,7 +1055,7 @@
         const receta = allRecipes.find(r => r.id === id);
         const nombre = receta ? receta.nombre : id;
         pedirConfirmacion('¿Eliminar la receta "' + nombre + '"?', function() {
-            $.ajax({ url: '/menus/api/receta/' + id, method: 'DELETE' })
+            $.ajax({ url: '/menus/api/receta/' + encodeURIComponent(id), method: 'DELETE' })
                 .done(function() {
                     currentRecipeId = null;
                     cargarRecetas();
@@ -804,7 +1095,7 @@
                     }
 
                     pedirConfirmacion(pregunta, function () {
-                        $.ajax({ url: '/menus/api/receta/' + id + '?force=1', method: 'DELETE' })
+                        $.ajax({ url: '/menus/api/receta/' + encodeURIComponent(id) + '?force=1', method: 'DELETE' })
                             .done(function (respuesta) {
                                 currentRecipeId = null;
                                 cargarRecetas();

@@ -209,14 +209,18 @@
         let html = '<div class="recipe-detail">';
 
         if (receta.ingredientes && Object.keys(receta.ingredientes).length) {
+            const aportesIng = receta.aportes_subrecetas && receta.aportes_subrecetas.ingredientes;
             html += '<div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div><ul class="ingredient-list">';
             Object.keys(receta.ingredientes).forEach(function (clave) {
                 const dato = receta.ingredientes[clave];
                 const opcional = !!(dato && typeof dato === 'object' && dato.opcional === true);
                 const cantidad = valorIngrediente(dato);
-                html += '<li class="' + (opcional ? 'optional-ingredient' : '') + '"><strong>' + esc(clave) + '</strong>' +
+                const aporte = aportesEtiqueta(aportesDe(aportesIng, clave));
+                html += '<li class="' + (opcional ? 'optional-ingredient' : '') + (aporte ? ' item-aportado' : '') +
+                        '"><strong>' + esc(clave) + '</strong>' +
                         (cantidad ? ': ' + esc(cantidad) : '') +
-                        (opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '') + '</li>';
+                        (opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '') +
+                        (aporte ? ' ' + aporte : '') + '</li>';
             });
             html += '</ul>';
         } else {
@@ -224,9 +228,14 @@
         }
 
         if (receta.utensilios && receta.utensilios.length) {
+            const aportesUt = receta.aportes_subrecetas && receta.aportes_subrecetas.utensilios;
             html += '<div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>' +
                     '<ul class="ingredient-list">' +
-                    receta.utensilios.map(function (u) { return '<li>' + esc(u) + '</li>'; }).join('') + '</ul>';
+                    receta.utensilios.map(function (u) {
+                        const aporte = aportesEtiqueta(aportesDe(aportesUt, u));
+                        return '<li class="' + (aporte ? 'item-aportado' : '') + '">' + esc(u) +
+                               (aporte ? ' ' + aporte : '') + '</li>';
+                    }).join('') + '</ul>';
         }
 
         html += '<div class="section-title"><i class="fas fa-clipboard-list"></i> Preparación</div>';
@@ -365,6 +374,85 @@
 
     window.pasoHtml = pasoHtml;
     window.pasosHtml = pasosHtml;
+
+    // --- Lo que aporta cada subreceta, para distinguirlo en las listas ---
+    //
+    // La API manda en `aportes_subrecetas` los ingredientes y utensilios que llegan
+    // de recetas enlazadas (a cualquier nivel). Aquí se buscan y se pintan con su
+    // etiqueta, avisando de que no hay que repetirlos en la receta de arriba.
+
+    function claveNormal(texto) {
+        return String(texto == null ? '' : texto).trim().toLowerCase().normalize('NFC');
+    }
+
+    // Busca en {clave: [nombres]} sin depender de mayúsculas ni tildes
+    function aportesDe(mapa, clave) {
+        if (!mapa) return [];
+        if (Object.prototype.hasOwnProperty.call(mapa, clave)) return mapa[clave] || [];
+        const k = claveNormal(clave);
+        for (const punto in mapa) {
+            if (claveNormal(punto) === k) return mapa[punto] || [];
+        }
+        return [];
+    }
+
+    // Etiqueta discreta: «de «Salsa de tomate»»
+    function aportesEtiqueta(nombres) {
+        if (!nombres || !nombres.length) return '';
+        const primeros = nombres.slice(0, 2);
+        let texto = 'de ' + primeros.map(function (n) { return '«' + n + '»'; }).join(' y ');
+        if (nombres.length > primeros.length) texto += ' +' + (nombres.length - primeros.length) + ' más';
+        return '<span class="aportes-sub" title="' +
+               escapeHtml('Lo aportan las recetas enlazadas: ' + nombres.join(', ')) + '">' +
+               '<i class="fas fa-diagram-project" aria-hidden="true"></i> ' + escapeHtml(texto) + '</span>';
+    }
+
+    // Lo que aporta una subreceta y la receta de arriba NO tiene escrito: también hace
+    // falta, así que se añade a su misma lista, marcado con el nombre de su origen.
+    function aportesExtras(mapa, propios) {
+        if (!mapa) return [];
+        const vistas = {};
+        (propios || []).forEach(function (p) { vistas[claveNormal(p)] = true; });
+        const extras = [];
+        for (const clave in mapa) {
+            if (!vistas[claveNormal(clave)]) extras.push({ clave: clave, nombres: mapa[clave] || [] });
+        }
+        extras.sort(function (a, b) { return a.clave.localeCompare(b.clave, 'es'); });
+        return extras;
+    }
+
+    // Resumen de las recetas enlazadas y lo que cada una trae a la de arriba
+    function aportesResumen(aportes) {
+        const arbol = (aportes && aportes.arbol) || [];
+        if (!arbol.length) return '';
+        let html = '<div class="aportes-resumen"><div class="section-title">' +
+                   '<i class="fas fa-diagram-project"></i> Usa estas recetas</div>';
+        arbol.forEach(function (rama) {
+            html += '<div class="aportes-rama">';
+            html += '<span class="aportes-nombre">' + escapeHtml(rama.nombre) + '</span>';
+            if (!rama.directa) {
+                html += ' <span class="aportes-anidada" title="La enlaza otra receta enlazada">(enlazada por otra)</span>';
+            }
+            if (rama.ingredientes.length) {
+                html += '<div class="aportes-detalle"><i class="fas fa-leaf"></i> ' +
+                        escapeHtml(rama.ingredientes.join(', ')) + '</div>';
+            }
+            if (rama.utensilios.length) {
+                html += '<div class="aportes-detalle"><i class="fas fa-blender"></i> ' +
+                        escapeHtml(rama.utensilios.join(', ')) + '</div>';
+            }
+            html += '</div>';
+        });
+        html += '<p class="text-muted small mb-0 mt-1"><i class="fas fa-info-circle"></i> ' +
+                'Lo que traen esas recetas ya cuenta para la lista de la compra: ' +
+                'no lo repitas aquí.</p></div>';
+        return html;
+    }
+
+    window.aportesDe = aportesDe;
+    window.aportesEtiqueta = aportesEtiqueta;
+    window.aportesExtras = aportesExtras;
+    window.aportesResumen = aportesResumen;
     window.pintarEnlacesSubrecetas = pintarEnlacesEn;
     // Para el editor de recetas: resolver un texto escrito a mano y pintar sus avisos.
     window.resolverSubrecetaTexto = function (texto, mapa) {

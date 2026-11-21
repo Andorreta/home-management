@@ -49,7 +49,7 @@
 <!-- Modal de menú nuevo -->
 <div class="modal fade" id="menu-nuevo-modal" tabindex="-1"
      aria-labelledby="menu-nuevo-titulo" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="menu-nuevo-titulo"><i class="fas fa-plus-circle"></i> Menú nuevo</h5>
@@ -287,8 +287,8 @@
         (menu.dias || []).forEach(function(d) {
             html += '<div class="day-card">';
             html += '<h4><i class="fas fa-calendar-day"></i> ' + escapeHtml(d.dia || '') + '</h4>';
-            html += renderMeal('Comida', d.comida, d.id_comida, data.recetas || {});
-            html += renderMeal('Cena', d.cena, d.id_cena, data.recetas || {});
+            html += renderMeal('Comida', d.comida, d.id_comida, data.recetas || {}, data.aportes || {});
+            html += renderMeal('Cena', d.cena, d.id_cena, data.recetas || {}, data.aportes || {});
             html += '</div>';
         });
 
@@ -314,7 +314,7 @@
         return html;
     }
 
-    function renderMeal(tipo, titulo, id, recetas) {
+    function renderMeal(tipo, titulo, id, recetas, aportesDelMenu) {
         const nombre = String(titulo ?? '');
         const esSobras = id === 'sobras' || nombre.toLowerCase().includes('sobras');
 
@@ -329,6 +329,11 @@
         }
 
         const receta = recetas[id];
+        // Lo que aportan las recetas enlazadas: se mezcla en la misma lista, marcado con su origen
+        const aportes = (aportesDelMenu && aportesDelMenu[id]) || {};
+        const etiqueta = function (mapa, clave) {
+            return window.aportesEtiqueta ? window.aportesEtiqueta(window.aportesDe(mapa, clave)) : '';
+        };
         let ingHtml = '';
         if (receta.ingredientes) {
             for (let ingrediente in receta.ingredientes) {
@@ -344,12 +349,32 @@
                 const qtyStr = cantidad ? ': ' + escapeHtml(cantidad) : '';
                 const optStr = opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '';
                 const optionalClass = opcional ? ' optional-ingredient' : '';
-                ingHtml += '<li class="' + optionalClass + '"><strong>' + escapeHtml(ingrediente) + '</strong>' +
-                           qtyStr + optStr + '</li>';
+                const aporte = etiqueta(aportes.ingredientes, ingrediente);
+                ingHtml += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '"><strong>' +
+                           escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr +
+                           (aporte ? ' ' + aporte : '') + '</li>';
             }
         }
+        if (window.aportesExtras) {
+            window.aportesExtras(aportes.ingredientes, Object.keys(receta.ingredientes || {})).forEach(function (extra) {
+                ingHtml += '<li class="item-aportado"><strong>' + escapeHtml(extra.clave) + '</strong> ' +
+                           etiqueta(aportes.ingredientes, extra.clave) + '</li>';
+            });
+        }
 
-        const uteHtml = receta.utensilios ? receta.utensilios.map(u => '<li>' + escapeHtml(u) + '</li>').join('') : '';
+        let uteHtml = receta.utensilios
+            ? receta.utensilios.map(function (u) {
+                  const aporte = etiqueta(aportes.utensilios, u);
+                  return '<li class="' + (aporte ? 'item-aportado' : '') + '">' + escapeHtml(u) +
+                         (aporte ? ' ' + aporte : '') + '</li>';
+              }).join('')
+            : '';
+        if (window.aportesExtras) {
+            window.aportesExtras(aportes.utensilios, receta.utensilios || []).forEach(function (extra) {
+                uteHtml += '<li class="item-aportado">' + escapeHtml(extra.clave) + ' ' +
+                           etiqueta(aportes.utensilios, extra.clave) + '</li>';
+            });
+        }
         // Los pasos pueden enlazar subrecetas: window.pasosHtml (static/js/subrecetas.js)
         const pasHtml = window.pasosHtml ? window.pasosHtml(receta.pasos)
                                          : (receta.pasos || []).map(p => '<li>' + escapeHtml(p) + '</li>').join('');
