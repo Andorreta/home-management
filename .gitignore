@@ -10,3 +10,4 @@ data/expenses.db
 data/tickets/
 data/menus.db
 data/generacion/
+data/*.bak*
