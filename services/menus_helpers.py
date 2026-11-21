@@ -4,6 +4,7 @@ ingredientes y lista de la compra. Puro: no toca ficheros ni la red.
 """
 
 import re
+import unicodedata
 from datetime import datetime, timedelta
 
 from . import ingredientes
@@ -313,8 +314,14 @@ SLUG_TRADE = str.maketrans({
 
 
 def slugify(nombre):
-    """'Pollo al curry (con arroz)' -> 'pollo_al_curry_con_arroz'."""
+    """'Pollo al curry (con arroz)' -> 'pollo_al_curry_con_arroz'.
+
+    El id sale siempre en ASCII: los acentos y la eñe se deshacen (NFKD) y lo que
+    no sea letra o número se convierte en guion bajo. El NOMBRE de la receta puede
+    llevar cualquier carácter; el id, no (así las URLs de la API no dependen de la
+    codificación)."""
     s = nombre.lower().strip().translate(SLUG_TRADE)
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
     s = re.sub(r'[^a-z0-9]+', '_', s)
     return s.strip('_')[:60]
 
@@ -442,6 +449,43 @@ def expandir_receta(receta_id, recetas_data):
             elif sub not in vistos:
                 pila.append((sub, nivel + 1))
     return ids, rotos
+
+
+def aportes_subrecetas(receta_id, recetas_data):
+    """Qué aportan las subrecetas de una receta, para enseñarlo en su ficha.
+
+    Devuelve un dict con:
+      'ingredientes': {clave: [nombres de subreceta que la aportan]}  (a cualquier nivel)
+      'utensilios':   {utensilio: [nombres de subreceta que lo aportan]}
+      'arbol':        [{'id', 'nombre', 'directa', 'ingredientes', 'utensilios'}, ...]
+    La propia receta no se cuenta. Los enlaces rotos se ignoran y los bucles no
+    duplican ni cuelgan el recorrido (usa expandir_receta)."""
+    ids, _rotos = expandir_receta(receta_id, recetas_data)
+    directas = set(subrecetas_de_receta(recetas_data.get(receta_id) or {},
+                                        nombres_de(recetas_data)))
+    aportes_ing, aportes_ut, arbol = {}, {}, []
+    for sub_id in ids:
+        if sub_id == receta_id:
+            continue
+        sub = recetas_data.get(sub_id)
+        if not sub:
+            continue
+        nombre = str(sub.get('nombre') or sub_id)
+        normalizada = normalize_receta(sub)   # las claves como las enseña la API
+        ing = [str(k) for k in (normalizada.get('ingredientes') or {}).keys()]
+        ut = [str(u) for u in (normalizada.get('utensilios') or []) if str(u).strip()]
+        arbol.append({'id': sub_id, 'nombre': nombre, 'directa': sub_id in directas,
+                      'ingredientes': sorted(ing), 'utensilios': ut})
+        for clave in ing:
+            lista = aportes_ing.setdefault(clave, [])
+            if nombre not in lista:
+                lista.append(nombre)
+        for utensilio in ut:
+            lista = aportes_ut.setdefault(utensilio, [])
+            if nombre not in lista:
+                lista.append(nombre)
+    arbol.sort(key=lambda a: (not a['directa'], a['nombre']))
+    return {'ingredientes': aportes_ing, 'utensilios': aportes_ut, 'arbol': arbol}
 
 
 def subrecetas_usadas_por(recetas_data, receta_id):

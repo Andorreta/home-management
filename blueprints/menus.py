@@ -125,6 +125,13 @@ def api_menu(menu_name):
                     })
 
         # Preparar datos para la respuesta
+        # Aportes de las subrecetas, solo de los platos de este menú (para su ficha)
+        platos = []
+        for dia in menu.get('dias', []) or []:
+            for clave in ('id_comida', 'id_cena'):
+                rid = dia.get(clave)
+                if rid and rid != 'sobras' and rid in recetas_data and rid not in platos:
+                    platos.append(rid)
         menu_data = {
             'menu': menu,
             'mandatory_ingredients': mandatory_ingredients,
@@ -132,6 +139,7 @@ def api_menu(menu_name):
             'despensa_base': despensa,
             'recetas': recetas_data,
             'avisos': avisos,
+            'aportes': {rid: helpers.aportes_subrecetas(rid, recetas_data) for rid in platos},
         }
         return jsonify(menu_data)
     else:
@@ -147,7 +155,10 @@ def api_receta(receta_id):
             # Edición: tal cual está guardado, sin normalizar
             return jsonify(recetas_data[receta_id])
         # Normalizar receta antes de devolverla
-        return jsonify(helpers.normalize_receta(recetas_data[receta_id]))
+        receta = helpers.normalize_receta(recetas_data[receta_id])
+        # Qué aportan sus subrecetas (para marcarlo en la ficha)
+        receta['aportes_subrecetas'] = helpers.aportes_subrecetas(receta_id, recetas_data)
+        return jsonify(receta)
     else:
         return jsonify({'error': 'Receta no encontrada'}), 404
 
