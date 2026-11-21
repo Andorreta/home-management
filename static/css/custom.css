@@ -547,19 +547,7 @@ summary:hover {
     font-weight: 500;
 }
 
-/* Panel del editor: buscador + inserción del enlace en un paso */
-.sub-insert {
-    margin-top: 10px;
-    padding: 10px 12px;
-    border: 1px solid #e3e8ee;
-    border-radius: 8px;
-    background-color: #fbfcfd;
-}
-
-.sub-buscar {
-    position: relative;
-}
-
+/* Sugerencias del buscador que abre el botón de enlace de cada paso */
 .sub-sugerencias {
     position: absolute;
     top: 100%;
@@ -929,68 +917,81 @@ summary:hover {
     gap: 0.4rem;
 }
 
+/* Una fila = número + caja; los botones van debajo de la caja, en su misma columna,
+   como iconos azules diminutos al estilo Liferay (no ocupan sitio junto al input). */
 .fila-item {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.35rem;
+    display: grid;
+    grid-template-columns: 1.8rem minmax(0, 1fr);
+    column-gap: 0.35rem;
+    margin-bottom: 0.75rem;
 }
 
 .fila-num {
-    flex: 0 0 auto;
-    width: 1.8rem;
+    grid-area: 1 / 1;
     text-align: right;
     color: #6c757d;
     font-size: 0.85rem;
-    padding-bottom: 0.55rem;
+    padding-top: 0.5rem;
 }
 
 /* La caja crece hacia abajo (autoAltura en recetas.html); nunca hacia los lados */
 .fila-input {
-    flex: 1 1 8rem;
-    min-width: 7rem;
+    grid-area: 1 / 2;
     min-height: calc(1.5em + 0.75rem + 2px);
     max-height: 600px;
     resize: none;
     overflow-y: hidden;
+    min-width: 0;
 }
 
 .fila-input:focus {
     overflow-y: auto;
 }
 
+/* Botones diminutos y azules, como los iconos de las listas de Liferay:
+   una línea fina debajo de la caja, sin restar ancho al input. */
 .fila-acciones {
+    grid-area: 2 / 2;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
-    flex: 0 0 auto;
+    gap: 0.15rem;
+    margin-top: 0.15rem;
 }
 
-/* Botones pequeños y azules, como los de las listas de Liferay */
 .fila-btn {
     flex: 0 0 auto;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #86b7fe;
+    border: 0;
     border-radius: 0.375rem;
-    background-color: #fff;
-    color: #0a58ca;
-    font-size: 0.9rem;
+    background-color: transparent;
+    color: #0d6efd;
+    font-size: 0.85rem;
     line-height: 1;
 }
 
 .fila-btn:hover:not(:disabled) {
     background-color: #e7f1ff;
     color: #0a58ca;
-    border-color: #0a58ca;
 }
 
 .fila-btn:disabled {
     opacity: 0.35;
+}
+
+/* Buscador que abre el botón de enlace, justo debajo de su paso */
+.fila-buscador {
+    grid-area: 3 / 2;
+    position: relative;
+    margin-top: 0.35rem;
+}
+
+.fila-item.fila-destino .fila-buscador {
+    margin-bottom: 0.15rem;
 }
 
 /* El paso al que irá el enlace que se está escribiendo */
@@ -1080,24 +1081,10 @@ summary:hover {
 /* En pantallas estrechas la caja ocupa toda la línea y los botones bajan debajo,
    así el texto del paso se aprovecha entero y se puede leer sin desplazar. */
 @media (max-width: 767.98px) {
-    .fila-input {
-        flex: 1 1 100%;
-    }
-
-    .fila-acciones {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    /* Destinos táctiles suficientes para pulsar con el dedo */
+    /* Destinos táctiles suficientes para pulsar con el dedo, sin salir de la fila */
     .fila-btn {
-        width: 2.6rem;
-        height: 2.6rem;
-        font-size: 1rem;
-    }
-
-    .fila-num {
-        padding-bottom: 0;
-        align-self: center;
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.95rem;
     }
 }
