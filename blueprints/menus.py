@@ -263,10 +263,39 @@ def api_actualizar_receta(receta_id):
     if receta_id not in recetas_data:
         return jsonify({'error': 'Receta no encontrada'}), 404
 
-    receta, error = helpers.validar_receta(request.get_json(silent=True) or {},
-                                           helpers.nombres_de(recetas_data))
+    datos = request.get_json(silent=True) or {}
+    receta, error = helpers.validar_receta(datos, helpers.nombres_de(recetas_data))
     if error:
         return jsonify({'error': error}), 400
+
+    # El usuario puede cambiar el id desde "Avanzado": hay que renombrar también
+    # los enlaces [subreceta](…) de otras recetas y los platos de los menús.
+    nuevo_id = str(datos.get('id') or '').strip()
+    if nuevo_id and nuevo_id != receta_id:
+        if not helpers.ID_RE.match(nuevo_id) or nuevo_id == 'sobras':
+            return jsonify({'error': 'Id inválido (letras minúsculas, números y _)'}), 400
+        if nuevo_id in recetas_data:
+            return jsonify({'error': f'Ya existe una receta con id "{nuevo_id}"'}), 409
+
+        catalogo = {k: v for k, v in recetas_data.items() if k != receta_id}
+        catalogo[nuevo_id] = receta
+        if helpers.hay_ciclo_subrecetas(nuevo_id, receta, catalogo):
+            return jsonify({'error': 'Hay un bucle de subrecetas: una receta no puede enlazarse a sí misma '
+                                     '(ni directamente ni a través de otra).'}), 400
+
+        menus_data = store().load_menus()
+        recetas_afect, menus_afect = helpers.renombrar_referencias(catalogo, menus_data,
+                                                                   receta_id, nuevo_id)
+        for rid in recetas_afect:
+            store().save_receta(rid, catalogo[rid])
+        for mid in menus_afect:
+            store().save_menu(mid, menus_data[mid])
+        store().delete_receta(receta_id)
+        store().save_receta(nuevo_id, receta)
+        return jsonify({'ok': True, 'id': nuevo_id, 'receta': receta,
+                        'renombrada_desde': receta_id,
+                        'recetas_actualizadas': recetas_afect,
+                        'menus_actualizados': menus_afect})
 
     if helpers.hay_ciclo_subrecetas(receta_id, receta, recetas_data):
         return jsonify({'error': 'Hay un bucle de subrecetas: una receta no puede enlazarse a sí misma '

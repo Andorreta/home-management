@@ -488,6 +488,46 @@ def aportes_subrecetas(receta_id, recetas_data):
     return {'ingredientes': aportes_ing, 'utensilios': aportes_ut, 'arbol': arbol}
 
 
+def renombrar_referencias(recetas_data, menus_data, viejo, nuevo):
+    """Prepara el cambio de id de una receta en todo el sistema (muta lo que recibe).
+
+    Reescribe los marcadores [subreceta](viejo) de las DEMÁS recetas y los platos
+    (id_comida/id_cena) de los menús. Devuelve (recetas_afectadas, menus_afectados)
+    con los ids que el llamador debe volver a guardar. No toca la receta renombrada:
+    ésa se guarda aparte bajo el id nuevo."""
+    recetas_afectadas = []
+    for rid, receta in recetas_data.items():
+        if rid == viejo:
+            continue
+        pasos = receta.get('pasos') or []
+        nuevos, tocado = [], False
+        for paso in pasos:
+            if isinstance(paso, str) and SUBRECETA_RE.search(paso):
+                p2 = SUBRECETA_RE.sub(
+                    lambda m: '[subreceta](%s)' % nuevo
+                    if (m.group(1) or '').strip() == viejo else m.group(0), paso)
+                if p2 != paso:
+                    tocado = True
+                nuevos.append(p2)
+            else:
+                nuevos.append(paso)
+        if tocado:
+            receta['pasos'] = nuevos
+            recetas_afectadas.append(rid)
+
+    menus_afectados = []
+    for mid, menu in menus_data.items():
+        tocado = False
+        for dia in menu.get('dias') or []:
+            for clave in ('id_comida', 'id_cena'):
+                if dia.get(clave) == viejo:
+                    dia[clave] = nuevo
+                    tocado = True
+        if tocado:
+            menus_afectados.append(mid)
+    return recetas_afectadas, menus_afectados
+
+
 def subrecetas_usadas_por(recetas_data, receta_id):
     """Ids de las recetas que enlazan receta_id en alguno de sus pasos."""
     catalogo_nombres = nombres_de(recetas_data)
