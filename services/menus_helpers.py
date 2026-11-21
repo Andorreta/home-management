@@ -299,7 +299,7 @@ def normalize_receta(receta):
             base, alts = ingredientes.separar_alternativo(k)
             nk, nv = normalize_ingredient(base, v)
             nk = ingredientes.canonico(nk)
-            alts = [ingredientes.canonico(a) for a in alts]
+            alts = [ingredientes.canonizar_alternativo(a) for a in alts]
             if nk in new_ing:
                 new_ing[nk] = ingredientes.fusionar_valores(new_ing[nk], nv)
                 for a in alts:
@@ -690,7 +690,7 @@ def validar_receta(datos, catalogo_nombres=None):
             return None, f'Cantidad inválida en "{clave}"'
 
         canonica = ingredientes.canonico(base)
-        alts = [ingredientes.canonico(a) for a in alts]
+        alts = [ingredientes.canonizar_alternativo(a) for a in alts]
         if canonica in limpios:
             # Dos alias del mismo ingrediente: se guardan como uno solo.
             limpios[canonica] = ingredientes.fusionar_valores(limpios[canonica], valor)

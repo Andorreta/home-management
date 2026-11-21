@@ -41,6 +41,10 @@ def limpiar(nombre):
 #   "pasta[altern(\"pasta fresca\", \"ñoquis\")]"
 # La clave guardada conserva el marcador; para buscar en el catálogo y para la
 # lista de la compra solo cuenta el nombre base.
+#
+# Cada sustituto puede llevar SU propia cantidad detrás de una barra vertical
+# (una cucharada de aceite no son las mismas 30 g de mantequilla):
+#   "aceite de oliva[altern(\"mantequilla|30 g\")]"
 ALTERN_RE = re.compile(r'\s*\[altern\(([^]]*)\)\s*\]')
 
 
@@ -59,9 +63,31 @@ def separar_alternativo(nombre):
     return base, alts
 
 
+def separar_cantidad(alt):
+    """'mantequilla|30 g' -> ('mantequilla', '30 g'). Sin barra, cantidad vacía."""
+    nombre, _, cantidad = str(alt or '').partition('|')
+    return limpiar(nombre), limpiar(cantidad)
+
+
+def canonizar_alternativo(alt):
+    """Canoniza el nombre del sustituto (catálogo, plurales) sin tocar su cantidad."""
+    nombre, cantidad = separar_cantidad(alt)
+    nombre = canonico(nombre)
+    if not nombre:
+        return ''
+    return f'{nombre}|{cantidad}' if cantidad else nombre
+
+
 def reconstruir_alternativo(base, alts):
     """Vuelve a escribir la clave con su marcador (si tiene sustitutos)."""
-    limpias = [str(a).replace('"', '').strip() for a in (alts or []) if str(a).strip()]
+    limpias = []
+    for a in (alts or []):
+        nombre, cantidad = separar_cantidad(str(a).replace('"', ''))
+        if not nombre:
+            continue
+        entrada = f'{nombre}|{cantidad}' if cantidad else nombre
+        if entrada not in limpias:
+            limpias.append(entrada)
     if not limpias:
         return base
     interior = ', '.join('"%s"' % a for a in limpias)
