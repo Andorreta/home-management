@@ -983,6 +983,36 @@ summary:hover {
     opacity: 0.35;
 }
 
+/* El botón de «paso opcional» queda pulsado mientras el paso lo está */
+.fila-btn.fila-btn-activo {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* Paso marcado como opcional: la caja se tinta en tono suave */
+.fila-item.fila-opcional .fila-input {
+    background-color: #fffbea;
+    border-color: #ffe69c;
+}
+
+/* Etiqueta «opcional» en pasos ya pintados (ficha, plan y modales) */
+.paso-opcional {
+    color: #8a6d1c;
+    font-size: 0.85em;
+    font-style: italic;
+    white-space: nowrap;
+}
+
+/* Sustitutos de un ingrediente: «pasta / pasta fresca / ñoquis» */
+.ing-alternativos {
+    color: #6c757d;
+    font-weight: 400;
+}
+
+.ing-altern {
+    font-size: 0.9rem;
+}
+
 /* Buscador que abre el botón de enlace, justo debajo de su paso */
 .fila-buscador {
     grid-area: 3 / 2;

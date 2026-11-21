@@ -256,8 +256,10 @@
             // Lo que llega de una receta enlazada se marca aparte para que no se repita
             const aporte = window.aportesEtiqueta
                 ? window.aportesEtiqueta(window.aportesDe(aportes, ingrediente)) : '';
-            html += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '"><strong>' +
-                    escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr +
+            html += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '">' +
+                    (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(ingrediente)
+                                                  : '<strong>' + escapeHtml(ingrediente) + '</strong>') +
+                    qtyStr + optStr +
                     (aporte ? ' ' + aporte : '') + '</li>';
         }
         extras.forEach(function (extra) {
@@ -379,6 +381,23 @@
         return { val: '', unidad: s };
     }
 
+    // "pasta[altern(\"pasta fresca\", \"ñoquis\")]" → {nombre:'pasta', alts:[…]}
+    const ALTERN_RE = /\s*\[altern\(([^\]]*)\)\]/;
+
+    function descomponAlternativas(clave) {
+        const s = String(clave || '');
+        const m = s.match(ALTERN_RE);
+        if (!m) return { nombre: s.trim(), alts: [] };
+        const alts = m[1].split(',').map(function (a) { return a.trim().replace(/^"|"$/g, ''); })
+                              .filter(Boolean);
+        return { nombre: s.replace(ALTERN_RE, ' ').replace(/\s+/g, ' ').trim(), alts: alts };
+    }
+
+    function componerClave(nombre, alts) {
+        if (!alts.length) return nombre;
+        return nombre + '[altern(' + alts.map(function (a) { return '"' + a + '"'; }).join(', ') + ')]';
+    }
+
     function agregarIngrediente(nombre, cantidad, opcional) {
         const opciones = UNIDADES_INGREDIENTE.map(function (u) {
             return '<option value="' + escapeHtml(u[0]) + '">' + escapeHtml(u[1]) + '</option>';
@@ -386,6 +405,7 @@
         const fila = $('<div class="row g-2 mb-2 ing-row">' +
             '<div class="col-md-4 ing-nombre-col">' +
             '<input type="text" class="form-control ing-nombre" autocomplete="off" aria-label="Nombre del ingrediente" aria-autocomplete="list" aria-expanded="false" placeholder="aceite de oliva">' +
+            '<input type="text" class="form-control ing-altern mt-1" autocomplete="off" aria-label="Sustitutos del ingrediente, separados por comas" placeholder="sustitutos, con comas: pasta fresca, ñoquis">' +
             '<div class="ing-sugerencias" role="listbox" aria-label="Sugerencias de ingredientes" hidden></div>' +
             '<div class="ing-hint small mt-1" hidden></div>' +
             '</div>' +
@@ -397,7 +417,8 @@
             '<label class="small mb-0">opc.<input type="checkbox" class="form-check-input ing-opcional ms-1"></label>' +
             '<button type="button" class="btn btn-outline-secondary btn-sm" title="Quitar" aria-label="Quitar ingrediente" onclick="$(this).closest(\'.ing-row\').remove()"><i class="fas fa-times" aria-hidden="true"></i></button>' +
             '</div></div>');
-        fila.find('.ing-nombre').val(nombre);
+        fila.find('.ing-nombre').val(descomponAlternativas(nombre).nombre);
+        fila.find('.ing-altern').val(descomponAlternativas(nombre).alts.join(', '));
         const c = descomponCantidad(cantidad);
         fila.find('.ing-val').val(c.val);
         const select = fila.find('.ing-unidad');
@@ -781,6 +802,21 @@
         utensilios: { contenedor: 'rc-utensilios-lista', placeholder: 'Cazuela', paso: false }
     };
 
+    // Un paso puede marcarse opcional: se guarda como texto normal terminado en
+    // «[opcional]», sin campos nuevos (igual que los enlaces a subreceta).
+    const PASO_OPCIONAL = /\s*\[opcional\]\s*$/;
+
+    function pintarEstadoOpcional(fila) {
+        const on = PASO_OPCIONAL.test(fila.querySelector('.fila-input').value);
+        fila.classList.toggle('fila-opcional', on);
+        const boton = fila.querySelector('[data-accion="opc"]');
+        if (boton) {
+            boton.classList.toggle('fila-btn-activo', on);
+            boton.setAttribute('aria-pressed', on ? 'true' : 'false');
+            boton.title = on ? 'Quitar la marca de opcional' : 'Marcar este paso como opcional';
+        }
+    }
+
     // Fila de la lista: su número (solo en pasos), su caja y sus botones
     function cajaFila(tipo, valor) {
         const cfg = FILAS[tipo];
@@ -793,6 +829,7 @@
                     cfg.placeholder + '">' + escapeHtml(valor || '') + '</textarea>');
         const botones = [];
         if (cfg.paso) botones.push(['sub', 'fa-diagram-project', 'Enlazar una subreceta a este paso']);
+        if (cfg.paso) botones.push(['opc', 'fa-circle-half-stroke', 'Marcar este paso como opcional']);
         botones.push(['arriba', 'fa-arrow-up', 'Subir este elemento']);
         botones.push(['abajo', 'fa-arrow-down', 'Bajar este elemento']);
         botones.push(['add', 'fa-plus', 'Añadir otra caja debajo']);
@@ -802,6 +839,7 @@
                    'title="' + b[2] + '" aria-label="' + b[2] + '"><i class="fas ' + b[1] + '"></i></button>';
         }).join('') + '</div>');
         fila.innerHTML = partes.join('');
+        if (cfg.paso) pintarEstadoOpcional(fila);
         return fila;
     }
 
@@ -887,6 +925,8 @@
     // cada línea se convierte en su propia caja.
     $(document).on('input', '.fila-input', function () {
         autoAltura(this);
+        const fila = this.closest('.fila-item');
+        if (fila && fila.dataset.tipo === 'pasos') pintarEstadoOpcional(fila);
         if (this._subTimer) clearTimeout(this._subTimer);
         this._subTimer = setTimeout(refrescarEnlacesSub, 250);
     });
@@ -948,6 +988,18 @@
         const tipo = fila.dataset.tipo;
         const accion = this.dataset.accion;
         if (accion === 'sub') { abrirBuscadorEnPaso(fila); return; }
+        if (accion === 'opc') {
+            const caja = fila.querySelector('.fila-input');
+            if (PASO_OPCIONAL.test(caja.value)) {
+                caja.value = caja.value.replace(PASO_OPCIONAL, '');
+            } else {
+                if (caja.value.trim()) caja.value = caja.value.trim() + ' [opcional]';
+            }
+            autoAltura(caja);
+            pintarEstadoOpcional(fila);
+            refrescarEnlacesSubPronto();
+            return;
+        }
         if (accion === 'add') {
             const nueva = cajaFila(tipo, '');
             fila.after(nueva);
@@ -1030,11 +1082,18 @@
     }
 
     // --- El id se escribe como uno quiera; se limpia solo ---
-    // minúsculas, sin acentos, espacios → «_» y fuera el resto de símbolos raros.
-    function sanearId(texto) {
+    // Mientras se escribe solo se quitan acentos y se pasa a minúsculas: los
+    // espacios y los «_» se dejan en paz para poder teclear tranquilo. La
+    // limpieza completa (espacios → «_», fuera símbolos, empieza por letra) se
+    // hace al salir del campo y, por seguridad, al guardar.
+    function sanearIdParcial(texto) {
         return String(texto || '')
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase()
+            .toLowerCase();
+    }
+
+    function sanearId(texto) {
+        return sanearIdParcial(texto)
             .replace(/[^a-z0-9_]+/g, '_')
             .replace(/_{2,}/g, '_')
             .replace(/^[^a-z]+|_+$/g, '')   // como el servidor: tiene que empezar por letra
@@ -1042,6 +1101,11 @@
     }
 
     $(document).on('input', '#rc-id', function () {
+        const limpio = sanearIdParcial(this.value);
+        if (limpio !== this.value) this.value = limpio;
+    });
+
+    $(document).on('blur', '#rc-id', function () {
         const limpio = sanearId(this.value);
         if (limpio !== this.value) this.value = limpio;
     });
@@ -1053,11 +1117,14 @@
         $('#rc-ingredientes .ing-row').each(function() {
             const nombre = $(this).find('.ing-nombre').val().trim();
             if (!nombre) return;
+            const alts = ($(this).find('.ing-altern').val() || '')
+                .split(',').map(function (a) { return a.trim().replace(/"/g, ''); }).filter(Boolean);
+            const clave = componerClave(nombre, alts);
             const val = $(this).find('.ing-val').val().trim().replace(',', '.');
             const unidad = $(this).find('.ing-unidad').val() || '';
             const cantidad = [val, unidad].filter(Boolean).join(' ');
             const opcional = $(this).find('.ing-opcional').is(':checked');
-            ingredientes[nombre] = opcional ? { cantidad: cantidad, opcional: true } : cantidad;
+            ingredientes[clave] = opcional ? { cantidad: cantidad, opcional: true } : cantidad;
             faltan = true;
         });
         if (!faltan) {

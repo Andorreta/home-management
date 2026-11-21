@@ -110,10 +110,21 @@
         return chipHtml(crudo, cadena);
     }
 
-    /* HTML de un paso: texto normal con los enlaces a subreceta como chips. */
+    /* HTML de un paso: texto normal con los enlaces a subreceta como chips.
+       El marcador «[opcional]» del final se quita del texto y se muestra como
+       etiqueta discreta. */
+    const OPCIONAL = /\s*\[opcional\]\s*$/;
+
+    function etiquetaOpcional() {
+        return ' <span class="paso-opcional"><i class="fas fa-circle-half-stroke" ' +
+               'aria-hidden="true"></i> opcional</span>';
+    }
+
     function pasoHtml(paso, cadena) {
         cadena = cadena || [];
-        const texto = String(paso === null || paso === undefined ? '' : paso);
+        let texto = String(paso === null || paso === undefined ? '' : paso);
+        const opcional = OPCIONAL.test(texto);
+        if (opcional) texto = texto.replace(OPCIONAL, '');
         const re = new RegExp(MARCADOR.source, 'g');
         let html = '';
         let ultimo = 0;
@@ -124,11 +135,21 @@
             ultimo = m.index + m[0].length;
         }
         html += esc(texto.slice(ultimo));
+        if (opcional) html += etiquetaOpcional();
         return html;
     }
 
     function pasosHtml(pasos, cadena) {
-        return (pasos || []).map(function (p) { return '<li>' + pasoHtml(p, cadena) + '</li>'; }).join('');
+        return (pasos || []).map(function (p) {
+            const texto = String(p == null ? '' : p);
+            const re = new RegExp(MARCADOR.source, 'g');
+            const crudos = [];
+            let m;
+            while ((m = re.exec(texto)) !== null) crudos.push((m[1] || '').trim());
+            const atributo = crudos.length
+                ? ' data-subcrudos="' + esc(crudos.join('\u0001')) + '"' : '';
+            return '<li' + atributo + '>' + pasoHtml(p, cadena) + '</li>';
+        }).join('');
     }
 
     // --- Pasos ya pintados por otras vistas (ficha de receta, plan semanal) ---
@@ -137,24 +158,101 @@
 
     function pintarLista(ol) {
         Array.prototype.forEach.call(ol.children, function (li) {
-            if (li.dataset.subrecetaPintado) return;
-            li.dataset.subrecetaPintado = '1';
-            const texto = li.textContent;
-            if (texto.indexOf('[subreceta]') === -1) return;
-            // split con grupo: [texto, id, texto, id, ...]
-            const partes = texto.split(MARCADOR);
-            let trozos = [];
-            partes.forEach(function (parte, i) {
-                const trozo = i % 2 === 1 ? chipPara(String(parte).trim(), texto) : esc(parte);
-                if (trozo) trozos.push(trozo);
+            if (!li.dataset.subrecetaPintado) {
+                li.dataset.subrecetaPintado = '1';
+                let texto = li.textContent;
+                const opcional = OPCIONAL.test(texto);
+                if (opcional) texto = texto.replace(OPCIONAL, '');
+                if (texto.indexOf('[subreceta]') !== -1 || opcional) {
+                    // split con grupo: [texto, id, texto, id, ...]
+                    const partes = texto.split(MARCADOR);
+                    let trozos = [];
+                    const crudos = [];
+                    partes.forEach(function (parte, i) {
+                        if (i % 2 === 1) {
+                            const crudo = String(parte).trim();
+                            trozos.push(chipPara(crudo, texto));
+                            crudos.push(crudo);
+                        } else {
+                            const trozo = esc(parte);
+                            if (trozo) trozos.push(trozo);
+                        }
+                    });
+                    if (opcional) trozos.push(etiquetaOpcional());
+                    if (trozos.length) li.innerHTML = trozos.join(' ');
+                    if (crudos.length) li.dataset.subcrudos = crudos.join('\u0001');
+                }
+            }
+            // Y los pasos de cada subreceta se pegan justo debajo, como pasos más
+            // de esta lista: así no hace falta abrir modales anidados para verlos.
+            // Vale tanto para los pasos recién pintados como para los que ya llegaron
+            // con el chip puesto (ficha y plan usan pasosHtml al construirse).
+            desplegarEnlaces(li, [], 0);
+        });
+    }
+
+    // Despliega todos los enlaces que un <li> anuncia en data-subcrudos.
+    function desplegarEnlaces(li, cadena, nivel) {
+        String(li.dataset.subcrudos || '').split('\u0001').forEach(function (crudo) {
+            if (!crudo) return;
+            const id = resolverEnCatalogo(crudo, catalogoCache) ||
+                       (/^[a-z0-9_]+$/.test(crudo) ? crudo : null);
+            if (id && catalogoCache[id] !== undefined) expandirSubpasos(li, id, cadena, nivel);
+        });
+    }
+
+    // Pega los pasos de la subreceta `id` debajo del <li> que la enlaza. Son <li>
+    // normales (solo sigue la numeración); el título ya lo lleva el chip del paso.
+    // `cadena` = recetas ya desplegadas por encima: ni se repiten ni se buclea.
+    function expandirSubpasos(li, id, cadena, nivel) {
+        const hechas = (li.dataset.subpasos || '').split(',').filter(Boolean);
+        if (hechas.indexOf(id) !== -1) return;
+        hechas.push(id);
+        li.dataset.subpasos = hechas.join(',');
+        if (cadena.indexOf(id) !== -1 || nivel >= 4) return;
+        if (pilaAbierta.indexOf(id) !== -1) return;   // ya es la receta abierta en el modal
+        cargarReceta(id).then(function (receta) {
+            if (!receta || !(receta.pasos || []).length) return;
+            const lista = li.parentNode;
+            if (!lista) return;
+            const cadenaHija = cadena.concat([id]);
+            let despuesDe = li;
+            receta.pasos.forEach(function (paso) {
+                const re = new RegExp(MARCADOR.source, 'g');
+                const crudos = [];
+                let m;
+                while ((m = re.exec(String(paso == null ? '' : paso))) !== null) {
+                    crudos.push((m[1] || '').trim());
+                }
+                const sub = document.createElement('li');
+                sub.innerHTML = pasoHtml(paso, cadenaHija);
+                sub.dataset.subrecetaPintado = '1';
+                if (crudos.length) sub.dataset.subcrudos = crudos.join('\u0001');
+                lista.insertBefore(sub, despuesDe.nextSibling);
+                despuesDe = sub;
+                desplegarEnlaces(sub, cadenaHija, nivel + 1);
             });
-            if (trozos.length) li.innerHTML = trozos.join(' ');
+        });
+    }
+
+    // Si los pasos se pintaron antes de que el catálogo estuviera listo, al
+    // llegar éste hay que desplegar lo que entonces no se pudo resolver.
+    function repasarExpansiones() {
+        document.querySelectorAll('.pasos-lista li[data-subcrudos]').forEach(function (li) {
+            if (li.dataset.subpasos) return;
+            String(li.dataset.subcrudos).split('\u0001').forEach(function (crudo) {
+                if (!crudo) return;
+                const id = resolverEnCatalogo(crudo, catalogoCache) ||
+                           (/^[a-z0-9_]+$/.test(crudo) ? crudo : null);
+                if (id && catalogoCache[id] !== undefined) expandirSubpasos(li, id, [], 0);
+            });
         });
     }
 
     function listasDentro(nodo) {
         const hay = [];
-        if (!nodo || nodo.nodeType !== 1) return hay;
+        // document y los fragmentos también valen como raíz (nodeType 9 y 11).
+        if (!nodo || (nodo.nodeType !== 1 && nodo.nodeType !== 9 && nodo.nodeType !== 11)) return hay;
         if (nodo.classList && nodo.classList.contains('pasos-lista')) hay.push(nodo);
         if (nodo.querySelectorAll) Array.prototype.push.apply(hay, nodo.querySelectorAll('.pasos-lista'));
         return hay;
@@ -217,7 +315,7 @@
                 const cantidad = valorIngrediente(dato);
                 const aporte = aportesEtiqueta(aportesDe(aportesIng, clave));
                 html += '<li class="' + (opcional ? 'optional-ingredient' : '') + (aporte ? ' item-aportado' : '') +
-                        '"><strong>' + esc(clave) + '</strong>' +
+                        '">' + nombreIngredienteHtml(clave) +
                         (cantidad ? ': ' + esc(cantidad) : '') +
                         (opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '') +
                         (aporte ? ' ' + aporte : '') + '</li>';
@@ -296,6 +394,9 @@
                 return;
             }
             cuerpo.innerHTML = rutaHtml() + detalleHtml(receta);
+            // Los pasos de las subrecetas se despliegan debajo de su enlace, igual
+            // que en la ficha y el plan (la pila abierta evita desplegar un ancestro).
+            repasarExpansiones();
             if (focoDentro) modalEl.focus();
             cuerpo.scrollTop = 0;
             const dialog = modalEl.querySelector('.modal-content');
@@ -321,6 +422,7 @@
             const etiqueta = $(this).find('.subreceta-chip-nombre');
             if (etiqueta.length && (!etiqueta.text() || etiqueta.text() === id)) etiqueta.text(mapa[id]);
         });
+        repasarExpansiones();
     }
 
     function refrescarEtiquetas() {
@@ -374,6 +476,7 @@
 
     window.pasoHtml = pasoHtml;
     window.pasosHtml = pasosHtml;
+    window.nombreIngredienteHtml = nombreIngredienteHtml;
 
     // --- Lo que aporta cada subreceta, para distinguirlo en las listas ---
     //
@@ -381,8 +484,31 @@
     // de recetas enlazadas (a cualquier nivel). Aquí se buscan y se pintan con su
     // etiqueta, avisando de que no hay que repetirlos en la receta de arriba.
 
+    // --- Ingredientes con sustitutos: «pasta[altern("pasta fresca", "ñoquis")]» ---
+    // Se muestra «pasta / pasta fresca / ñoquis»: el base va igual que siempre y
+    // los sustitutos, en gris, detrás con barras. Espejo de ALTERN_RE del servidor.
+
+    const ALTERN = /\s*\[altern\(([^\]]*)\)\]/;
+
+    function alternativaNombres(clave) {
+        const s = String(clave == null ? '' : clave);
+        const m = s.match(ALTERN);
+        const alts = m ? m[1].split(',').map(function (a) { return a.trim().replace(/^"|"$/g, ''); })
+                              .filter(Boolean) : [];
+        return { base: s.replace(ALTERN, '').trim(), alts: alts };
+    }
+
+    function nombreIngredienteHtml(clave) {
+        const p = alternativaNombres(clave);
+        let html = '<strong>' + esc(p.base) + '</strong>';
+        if (p.alts.length) {
+            html += '<span class="ing-alternativos"> / ' + p.alts.map(esc).join(' / ') + '</span>';
+        }
+        return html;
+    }
+
     function claveNormal(texto) {
-        return String(texto == null ? '' : texto).trim().toLowerCase().normalize('NFC');
+        return String(texto == null ? '' : texto).replace(ALTERN, '').trim().toLowerCase().normalize('NFC');
     }
 
     // Busca en {clave: [nombres]} sin depender de mayúsculas ni tildes

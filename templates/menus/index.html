@@ -350,8 +350,10 @@
                 const optStr = opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '';
                 const optionalClass = opcional ? ' optional-ingredient' : '';
                 const aporte = etiqueta(aportes.ingredientes, ingrediente);
-                ingHtml += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '"><strong>' +
-                           escapeHtml(ingrediente) + '</strong>' + qtyStr + optStr +
+                ingHtml += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '">' +
+                           (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(ingrediente)
+                                                         : '<strong>' + escapeHtml(ingrediente) + '</strong>') +
+                           qtyStr + optStr +
                            (aporte ? ' ' + aporte : '') + '</li>';
             }
         }
