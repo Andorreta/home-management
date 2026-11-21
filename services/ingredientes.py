@@ -37,6 +37,37 @@ def limpiar(nombre):
     return re.sub(r'\s+', ' ', str(nombre or '').strip())
 
 
+# Ingredientes con sustitutos válidos, escritos igual que los enlaces a subrecetas:
+#   "pasta[altern(\"pasta fresca\", \"ñoquis\")]"
+# La clave guardada conserva el marcador; para buscar en el catálogo y para la
+# lista de la compra solo cuenta el nombre base.
+ALTERN_RE = re.compile(r'\s*\[altern\(([^]]*)\)\s*\]')
+
+
+def separar_alternativo(nombre):
+    """'pasta[altern("pasta fresca", "ñoquis")]' -> ('pasta', ['pasta fresca', 'ñoquis'])."""
+    s = str(nombre or '')
+    m = ALTERN_RE.search(s)
+    if not m:
+        return limpiar(s), []
+    base = limpiar(ALTERN_RE.sub(' ', s))
+    alts = []
+    for trozo in m.group(1).split(','):
+        a = trozo.strip().strip('"').strip()
+        if a and a not in alts:
+            alts.append(a)
+    return base, alts
+
+
+def reconstruir_alternativo(base, alts):
+    """Vuelve a escribir la clave con su marcador (si tiene sustitutos)."""
+    limpias = [str(a).replace('"', '').strip() for a in (alts or []) if str(a).strip()]
+    if not limpias:
+        return base
+    interior = ', '.join('"%s"' % a for a in limpias)
+    return f'{base}[altern({interior})]'
+
+
 def _cargar_catalogo():
     try:
         with open(_CATALOGO_PATH, 'r', encoding='utf-8') as f:
@@ -76,8 +107,11 @@ def _variantes_singular(key):
 
 
 def canonico(nombre):
-    """Devuelve el nombre canónico de un ingrediente (o el nombre limpio)."""
-    nombre = limpiar(nombre)
+    """Devuelve el nombre canónico de un ingrediente (o el nombre limpio).
+
+    El marcador [altern(…)] no forma parte del nombre: se quita antes de buscar,
+    así la lista de la compra y las coincidencias usan siempre el nombre base."""
+    nombre = separar_alternativo(nombre)[0]
     if not nombre:
         return nombre
     key = _norm(nombre)

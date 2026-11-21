@@ -288,18 +288,30 @@ def _shopping_raw(menus_data, recetas_data):
 
 
 def normalize_receta(receta):
-    """Copia de la receta con los ingredientes normalizados y estandarizados."""
+    """Copia de la receta con los ingredientes normalizados y estandarizados.
+
+    El marcador [altern(…)] de los sustitutos se conserva al final de la clave;
+    lo que se canoniza (catálogo, plurales) es el nombre base."""
     receta = receta.copy()
     if 'ingredientes' in receta:
-        new_ing = {}
+        new_ing, alts_por_base = {}, {}
         for k, v in receta['ingredientes'].items():
-            nk, nv = normalize_ingredient(k, v)
+            base, alts = ingredientes.separar_alternativo(k)
+            nk, nv = normalize_ingredient(base, v)
             nk = ingredientes.canonico(nk)
+            alts = [ingredientes.canonico(a) for a in alts]
             if nk in new_ing:
                 new_ing[nk] = ingredientes.fusionar_valores(new_ing[nk], nv)
+                for a in alts:
+                    if a not in alts_por_base.setdefault(nk, []):
+                        alts_por_base[nk].append(a)
             else:
                 new_ing[nk] = nv
-        receta['ingredientes'] = new_ing
+                alts_por_base[nk] = list(alts)
+        receta['ingredientes'] = {
+            ingredientes.reconstruir_alternativo(b, alts_por_base.get(b, [])): val
+            for b, val in new_ing.items()
+        }
     return receta
 
 
@@ -472,7 +484,9 @@ def aportes_subrecetas(receta_id, recetas_data):
             continue
         nombre = str(sub.get('nombre') or sub_id)
         normalizada = normalize_receta(sub)   # las claves como las enseña la API
-        ing = [str(k) for k in (normalizada.get('ingredientes') or {}).keys()]
+        # Para casar aportes con los ingredientes propios se usa el nombre base,
+        # sin el marcador de sustitutos (que el cliente añade al buscar).
+        ing = [ingredientes.canonico(k) for k in (normalizada.get('ingredientes') or {}).keys()]
         ut = [str(u) for u in (normalizada.get('utensilios') or []) if str(u).strip()]
         arbol.append({'id': sub_id, 'nombre': nombre, 'directa': sub_id in directas,
                       'ingredientes': sorted(ing), 'utensilios': ut})
@@ -649,10 +663,15 @@ def validar_receta(datos, catalogo_nombres=None):
     ingredientes_datos = datos.get('ingredientes')
     if not isinstance(ingredientes_datos, dict) or not ingredientes_datos:
         return None, 'La receta necesita al menos un ingrediente'
-    limpios = {}
+    limpios, alts_por_clave = {}, {}
     for clave, valor in ingredientes_datos.items():
         clave = str(clave).strip()
         if not clave:
+            return None, 'Hay un ingrediente sin nombre'
+        # Los sustitutos [altern("a", "b")] se guardan con la clave; para el
+        # catálogo y las fusiones cuenta solo el nombre base.
+        base, alts = ingredientes.separar_alternativo(clave)
+        if not base:
             return None, 'Hay un ingrediente sin nombre'
         if isinstance(valor, dict):
             valor = {
@@ -670,12 +689,17 @@ def validar_receta(datos, catalogo_nombres=None):
         else:
             return None, f'Cantidad inválida en "{clave}"'
 
-        canonica = ingredientes.canonico(clave)
+        canonica = ingredientes.canonico(base)
+        alts = [ingredientes.canonico(a) for a in alts]
         if canonica in limpios:
             # Dos alias del mismo ingrediente: se guardan como uno solo.
             limpios[canonica] = ingredientes.fusionar_valores(limpios[canonica], valor)
+            for a in alts:
+                if a not in alts_por_clave.setdefault(canonica, []):
+                    alts_por_clave[canonica].append(a)
         else:
             limpios[canonica] = valor
+            alts_por_clave[canonica] = list(alts)
 
     def lista_texto(clave):
         valores = datos.get(clave) or []
@@ -700,7 +724,9 @@ def validar_receta(datos, catalogo_nombres=None):
             return None, 'Revisa los enlaces a subrecetas: ' + '; '.join(errores)
 
     receta = {'nombre': nombre, 'utensilios': utensilios,
-              'ingredientes': limpios, 'pasos': pasos}
+              'ingredientes': {ingredientes.reconstruir_alternativo(b, alts_por_clave.get(b, [])): v
+                               for b, v in limpios.items()},
+              'pasos': pasos}
     notas = str(datos.get('notas') or '').strip()
     if notas:
         receta['notas'] = notas
