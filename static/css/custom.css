@@ -575,14 +575,16 @@ summary:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+/* Same neutral look as the chips in the recipe cards: same idea, same colours. */
 .sub-enlace {
     display: inline-block;
     margin: 0 2px;
     padding: 1px 6px;
+    border: 1px solid #d7e0e8;
     border-radius: 5px;
-    background-color: #e9f2e9;
-    color: #2f5d33;
-    font-weight: 600;
+    background-color: #eef3f8;
+    color: #333;
+    font-weight: 500;
 }
 
 .sub-info-titulo {

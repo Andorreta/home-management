@@ -84,7 +84,7 @@
 
                             <div class="sub-insert">
                                 <label class="form-label small" for="rc-sub-buscar">
-                                    <i class="fas fa-diagram-subtask"></i> Enlazar una subreceta a un paso
+                                    <i class="fas fa-diagram-project"></i> Enlazar una subreceta a un paso
                                 </label>
                                 <p class="text-muted small mb-1">
                                     Lo que se repite siempre (cocer la pasta, cocer el arroz…) se define una vez
@@ -295,7 +295,7 @@
             const pasos = window.pasosHtml
                 ? window.pasosHtml(receta.pasos)
                 : receta.pasos.map(function (p) { return '<li>' + escapeHtml(p) + '</li>'; }).join('');
-            html += '<ol class="recipe-steps">' + pasos + '</ol>';
+            html += '<ol class="recipe-steps pasos-lista">' + pasos + '</ol>';
         } else {
             html += '<p class="text-muted"><i class="fas fa-info-circle"></i> Esta receta no tiene pasos indicados.</p>';
         }
@@ -309,7 +309,7 @@
         const guardada = allRecipes.find(r => r.id === currentRecipeId) || {};
         const usadasPor = guardada.usada_por || [];
         if (usadasPor.length) {
-            html += '<div class="section-title"><i class="fas fa-diagram-subtask"></i> La usan como subreceta</div>';
+            html += '<div class="section-title"><i class="fas fa-diagram-project"></i> La usan como subreceta</div>';
             html += '<p class="sub-usan">' + usadasPor.map(function (id) {
                 const r = allRecipes.find(x => x.id === id);
                 return '<button type="button" class="subreceta-chip" data-subreceta="' + escapeHtml(id) + '"' +
@@ -562,7 +562,7 @@
 
         let html = '';
         if (enlazadas.length) {
-            html += '<span class="sub-info-titulo"><i class="fas fa-diagram-subtask"></i> Enlazadas:</span> ' +
+            html += '<span class="sub-info-titulo"><i class="fas fa-diagram-project"></i> Enlazadas:</span> ' +
                     enlazadas.map(function (id) {
                         return '<span class="sub-enlace">' + escapeHtml(mapa[id] || id) + '</span>';
                     }).join(' ');
@@ -800,7 +800,7 @@
                     }
                     if (padres.length && menus.length) {
                         lineas.push('Además aparece en ' + menus.length + ' ' +
-                                    (menus.length === 1 ? 'menú' : 'menús') + ' guardados.');
+                                    (menus.length === 1 ? 'menú guardado' : 'menús guardados') + '.');
                     }
 
                     pedirConfirmacion(pregunta, function () {

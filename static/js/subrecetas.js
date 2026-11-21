@@ -77,7 +77,7 @@
             ? ' title="Esta subreceta ya está abierta en esta cadena"'
             : ' title="Subreceta no encontrada: ' + esc(crudo) + '"';
         return '<span class="' + clases + '" role="button" tabindex="0" aria-disabled="true"' + atributo + '>' +
-               '<i class="fas fa-diagram-subtask" aria-hidden="true"></i>' +
+               '<i class="fas fa-diagram-project" aria-hidden="true"></i>' +
                '<span class="subreceta-chip-nombre">' + esc(crudo) + '</span>' +
                '<i class="fas fa-question-circle subreceta-chip-aviso" aria-hidden="true"></i></span>';
     }
@@ -85,12 +85,32 @@
     function chipEnlace(id, nombre) {
         return '<button type="button" class="subreceta-chip" data-subreceta="' + esc(id) + '"' +
                ' aria-haspopup="dialog">' +
-               '<i class="fas fa-diagram-subtask" aria-hidden="true"></i>' +
+               '<i class="fas fa-diagram-project" aria-hidden="true"></i>' +
                '<span class="subreceta-chip-nombre">' + esc(nombre || id) + '</span></button>';
     }
 
-    /* HTML de un paso: texto normal con los enlaces a subreceta como chips.
-       `cadena` son los ids ya abiertos por encima (dentro del modal). */
+    // Etiqueta de un enlace, con el nombre resuelto si la receta existe.
+    // `cadena` son los ids ya abiertos por encima (dentro del modal).
+    function chipPara(crudo, cadena) {
+        const id = resolverEnCatalogo(crudo, catalogoCache) ||
+                   (/^[a-z0-9_]+$/.test(crudo) ? crudo : null);
+        if (id && catalogoCache[id] !== undefined) {
+            if (cadena.indexOf(id) !== -1) {
+                return '<span class="subreceta-chip subreceta-chip-anidada" aria-disabled="true"' +
+                       ' title="Ya la has abierto más arriba en esta cadena">' +
+                       '<i class="fas fa-diagram-project" aria-hidden="true"></i>' +
+                       '<span class="subreceta-chip-nombre">' + esc(catalogoCache[id]) + '</span></span>';
+            }
+            return chipEnlace(id, catalogoCache[id]);
+        }
+        if (id && !catalogoListo) {
+            // El catálogo aún no ha llegado: chip provisional que se refresca luego.
+            return chipEnlace(id, crudo);
+        }
+        return chipHtml(crudo, cadena);
+    }
+
+    /* HTML de un paso: texto normal con los enlaces a subreceta como chips. */
     function pasoHtml(paso, cadena) {
         cadena = cadena || [];
         const texto = String(paso === null || paso === undefined ? '' : paso);
@@ -100,24 +120,7 @@
         let m;
         while ((m = re.exec(texto)) !== null) {
             html += esc(texto.slice(ultimo, m.index));
-            const crudo = (m[1] || '').trim();
-            const id = resolverEnCatalogo(crudo, catalogoCache) ||
-                       (/^[a-z0-9_]+$/.test(crudo) ? crudo : null);
-            if (id && catalogoCache[id] !== undefined) {
-                if (cadena.indexOf(id) !== -1) {
-                    html += '<span class="subreceta-chip subreceta-chip-anidada" aria-disabled="true"' +
-                            ' title="Ya la has abierto más arriba en esta cadena">' +
-                            '<i class="fas fa-diagram-subtask" aria-hidden="true"></i>' +
-                            '<span class="subreceta-chip-nombre">' + esc(catalogoCache[id]) + '</span></span>';
-                } else {
-                    html += chipEnlace(id, catalogoCache[id]);
-                }
-            } else if (id && !catalogoListo) {
-                // El catálogo aún no ha llegado: chip provisional que se refresca luego.
-                html += chipEnlace(id, crudo);
-            } else {
-                html += chipHtml(crudo, cadena);
-            }
+            html += chipPara((m[1] || '').trim(), cadena);
             ultimo = m.index + m[0].length;
         }
         html += esc(texto.slice(ultimo));
@@ -126,6 +129,64 @@
 
     function pasosHtml(pasos, cadena) {
         return (pasos || []).map(function (p) { return '<li>' + pasoHtml(p, cadena) + '</li>'; }).join('');
+    }
+
+    // --- Pasos ya pintados por otras vistas (ficha de receta, plan semanal) ---
+    // Esas vistas escriben el paso como texto plano; aquí se sustituyen sus enlaces
+    // por la etiqueta clicable. Cada <li> se marca para no repasarlo dos veces.
+
+    function pintarLista(ol) {
+        Array.prototype.forEach.call(ol.children, function (li) {
+            if (li.dataset.subrecetaPintado) return;
+            li.dataset.subrecetaPintado = '1';
+            const texto = li.textContent;
+            if (texto.indexOf('[subreceta]') === -1) return;
+            // split con grupo: [texto, id, texto, id, ...]
+            const partes = texto.split(MARCADOR);
+            let trozos = [];
+            partes.forEach(function (parte, i) {
+                const trozo = i % 2 === 1 ? chipPara(String(parte).trim(), texto) : esc(parte);
+                if (trozo) trozos.push(trozo);
+            });
+            if (trozos.length) li.innerHTML = trozos.join(' ');
+        });
+    }
+
+    function listasDentro(nodo) {
+        const hay = [];
+        if (!nodo || nodo.nodeType !== 1) return hay;
+        if (nodo.classList && nodo.classList.contains('pasos-lista')) hay.push(nodo);
+        if (nodo.querySelectorAll) Array.prototype.push.apply(hay, nodo.querySelectorAll('.pasos-lista'));
+        return hay;
+    }
+
+    function pintarEnlacesEn(raiz) { listasDentro(raiz).forEach(pintarLista); }
+
+    function vigilarCambiosDOM() {
+        const cuerpo = document.body;
+        if (!cuerpo || typeof MutationObserver === 'undefined') return;
+        let pendiente = null;
+        const observador = new MutationObserver(function (mutaciones) {
+            let tocado = false;
+            mutaciones.forEach(function (m) {
+                if (tocado) return;
+                tocado = listasDentro(m.target).length > 0;
+                if (!tocado) {
+                    Array.prototype.forEach.call(m.addedNodes || [], function (n) {
+                        if (!tocado) tocado = listasDentro(n).length > 0;
+                    });
+                }
+            });
+            if (!tocado) return;
+            // Un solo repaso por turno del lazo: pintar un paso modifica el DOM y el
+            // propio observador lo vería volver a cambiar.
+            if (pendiente) return;
+            pendiente = Promise.resolve().then(function () {
+                pendiente = null;
+                pintarEnlacesEn(document);
+            });
+        });
+        observador.observe(cuerpo, { childList: true, subtree: true });
     }
 
     // --- Detalle de receta (se usa dentro del modal) ---
@@ -170,7 +231,7 @@
 
         html += '<div class="section-title"><i class="fas fa-clipboard-list"></i> Preparación</div>';
         if (receta.pasos && receta.pasos.length) {
-            html += '<ol class="recipe-steps">' + pasosHtml(receta.pasos, pilaAbierta) + '</ol>';
+            html += '<ol class="recipe-steps pasos-lista">' + pasosHtml(receta.pasos, pilaAbierta) + '</ol>';
         } else {
             html += '<p class="text-muted"><i class="fas fa-info-circle"></i> Esta receta no tiene pasos indicados.</p>';
         }
@@ -298,10 +359,13 @@
             });
         }
         refrescarEtiquetas();
+        pintarEnlacesEn(document);
+        vigilarCambiosDOM();
     });
 
     window.pasoHtml = pasoHtml;
     window.pasosHtml = pasosHtml;
+    window.pintarEnlacesSubrecetas = pintarEnlacesEn;
     // Para el editor de recetas: resolver un texto escrito a mano y pintar sus avisos.
     window.resolverSubrecetaTexto = function (texto, mapa) {
         return resolverEnCatalogo(texto, mapa || catalogoCache);
