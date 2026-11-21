@@ -352,10 +352,11 @@
     function detalleHtml(receta) {
         let html = '<div class="recipe-detail">';
 
-        if (receta.ingredientes && Object.keys(receta.ingredientes).length) {
-            const aportesIng = receta.aportes_subrecetas && receta.aportes_subrecetas.ingredientes;
+        const aportesIng = receta.aportes_subrecetas && receta.aportes_subrecetas.ingredientes;
+        const extrasIng = aportesExtras(aportesIng, Object.keys(receta.ingredientes || {}));
+        if ((receta.ingredientes && Object.keys(receta.ingredientes).length) || extrasIng.length) {
             html += '<div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div><ul class="ingredient-list">';
-            Object.keys(receta.ingredientes).forEach(function (clave) {
+            Object.keys(receta.ingredientes || {}).forEach(function (clave) {
                 const dato = receta.ingredientes[clave];
                 const opcional = !!(dato && typeof dato === 'object' && dato.opcional === true);
                 const cantidad = valorIngrediente(dato);
@@ -366,19 +367,30 @@
                         (opcional ? ' <span class="badge bg-warning text-dark">(Opcional)</span>' : '') +
                         (aporte ? ' ' + aporte : '') + '</li>';
             });
+            // Lo que solo trae una subreceta también hace falta para cocinar: se añade
+            // a la misma lista, con sus sustitutos y con la «i» de su origen.
+            extrasIng.forEach(function (extra) {
+                html += '<li class="item-aportado">' + nombreIngredienteHtml(extra.clave) +
+                        ' ' + aportesEtiqueta(extra.nombres) + '</li>';
+            });
             html += '</ul>';
         } else {
             html += '<p class="text-muted"><i class="fas fa-info-circle"></i> Sin ingredientes propios.</p>';
         }
 
-        if (receta.utensilios && receta.utensilios.length) {
-            const aportesUt = receta.aportes_subrecetas && receta.aportes_subrecetas.utensilios;
+        const aportesUt = receta.aportes_subrecetas && receta.aportes_subrecetas.utensilios;
+        const extrasUt = aportesExtras(aportesUt, receta.utensilios || []);
+        if ((receta.utensilios && receta.utensilios.length) || extrasUt.length) {
             html += '<div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>' +
                     '<ul class="ingredient-list">' +
-                    receta.utensilios.map(function (u) {
+                    (receta.utensilios || []).map(function (u) {
                         const aporte = aportesEtiqueta(aportesDe(aportesUt, u));
                         return '<li class="' + (aporte ? 'item-aportado' : '') + '">' + esc(u) +
                                (aporte ? ' ' + aporte : '') + '</li>';
+                    }).join('') +
+                    extrasUt.map(function (extra) {
+                        return '<li class="item-aportado">' + esc(extra.clave) +
+                               ' ' + aportesEtiqueta(extra.nombres) + '</li>';
                     }).join('') + '</ul>';
         }
 
@@ -518,6 +530,7 @@
         refrescarEtiquetas();
         pintarEnlacesEn(document);
         vigilarCambiosDOM();
+        vigilarAportes();
     });
 
     window.pasoHtml = pasoHtml;
@@ -562,6 +575,15 @@
         return html;
     }
 
+    // Lo mismo, pero en texto plano (para el resumen de recetas enlazadas).
+    function textoConSustitutos(clave) {
+        const p = alternativaNombres(clave);
+        if (!p.alts.length) return p.base;
+        return p.base + ' / ' + p.alts.map(function (a) {
+            return a.nombre + (a.cantidad ? ' ' + a.cantidad : '');
+        }).join(' / ');
+    }
+
     function claveNormal(texto) {
         return String(texto == null ? '' : texto).replace(ALTERN, '').trim().toLowerCase().normalize('NFC');
     }
@@ -577,15 +599,86 @@
         return [];
     }
 
-    // Etiqueta discreta: «de «Salsa de tomate»»
+    // De dónde viene un ingrediente/utensilio aportado: una «i» en un círculo, sin
+    // texto, para no recargar la lista. El nombre de la receta de procede se lee en
+    // un globo al pasar el ratón, al enfocar con el teclado o al tocarlo con el dedo.
     function aportesEtiqueta(nombres) {
         if (!nombres || !nombres.length) return '';
-        const primeros = nombres.slice(0, 2);
-        let texto = 'de ' + primeros.map(function (n) { return '«' + n + '»'; }).join(' y ');
-        if (nombres.length > primeros.length) texto += ' +' + (nombres.length - primeros.length) + ' más';
-        return '<span class="aportes-sub" title="' +
-               escapeHtml('Lo aportan las recetas enlazadas: ' + nombres.join(', ')) + '">' +
-               '<i class="fas fa-diagram-project" aria-hidden="true"></i> ' + escapeHtml(texto) + '</span>';
+        const texto = nombres.join(', ');
+        return '<button type="button" class="aporte-info" data-aporte="' + esc(texto) + '"' +
+               ' aria-label="Lo aporta ' + esc(texto) + '">' +
+               '<i class="fas fa-info-circle" aria-hidden="true"></i></button>';
+    }
+
+    // El globo es uno solo, pegado al body: así ningún modal con scroll se lo come.
+    let globoAporte = null, globoAncla = null, globoFijo = false;
+
+    function globoDeAporte() {
+        if (!globoAporte || !globoAporte.isConnected) {
+            globoAporte = document.createElement('div');
+            globoAporte.className = 'aporte-globo';
+            globoAporte.setAttribute('role', 'tooltip');
+            globoAporte.hidden = true;
+            document.body.appendChild(globoAporte);
+        }
+        return globoAporte;
+    }
+
+    function mostrarGlobo(boton, fijo) {
+        const g = globoDeAporte();
+        g.textContent = boton.getAttribute('data-aporte') || '';
+        g.hidden = false;
+        const caja = boton.getBoundingClientRect();
+        const ancho = g.offsetWidth, alto = g.offsetHeight;
+        const encima = caja.top - alto - 6;
+        g.style.top = Math.max(8, encima > 8 ? encima
+                                             : Math.min(window.innerHeight - alto - 8, caja.bottom + 6)) + 'px';
+        const izquierda = caja.left + caja.width / 2 - ancho / 2;
+        g.style.left = Math.max(8, Math.min(izquierda, window.innerWidth - ancho - 8)) + 'px';
+        g.classList.add('visible');
+        globoAncla = boton;
+        globoFijo = !!fijo;
+    }
+
+    function esconderGlobo() {
+        if (!globoAporte) return;
+        globoAporte.classList.remove('visible');
+        globoAporte.hidden = true;
+        globoAncla = null;
+        globoFijo = false;
+    }
+
+    function botonAporte(nodo) {
+        return nodo && nodo.closest ? nodo.closest('.aporte-info') : null;
+    }
+
+    function vigilarAportes() {
+        document.addEventListener('mouseover', function (e) {
+            const b = botonAporte(e.target);
+            if (b) mostrarGlobo(b, false);
+        });
+        document.addEventListener('mouseout', function (e) {
+            if (botonAporte(e.target) && !globoFijo) esconderGlobo();
+        });
+        document.addEventListener('focusin', function (e) {
+            const b = botonAporte(e.target);
+            if (b) mostrarGlobo(b, false);
+        });
+        document.addEventListener('focusout', function (e) {
+            if (botonAporte(e.target) && !globoFijo) esconderGlobo();
+        });
+        // Sin ratón (móvil/tablet) el toque es lo que abre y cierra el globo.
+        document.addEventListener('click', function (e) {
+            const b = botonAporte(e.target);
+            if (!b) { if (globoFijo) esconderGlobo(); return; }
+            e.preventDefault();
+            if (globoFijo && globoAncla === b) { esconderGlobo(); return; }
+            mostrarGlobo(b, true);
+        }, true);
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') esconderGlobo(); });
+        // Al mover la página el botón se va: el globo también.
+        window.addEventListener('scroll', function () { if (globoAncla) esconderGlobo(); }, true);
+        window.addEventListener('resize', esconderGlobo);
     }
 
     // Lo que aporta una subreceta y la receta de arriba NO tiene escrito: también hace
@@ -610,17 +703,17 @@
                    '<i class="fas fa-diagram-project"></i> Usa estas recetas</div>';
         arbol.forEach(function (rama) {
             html += '<div class="aportes-rama">';
-            html += '<span class="aportes-nombre">' + escapeHtml(rama.nombre) + '</span>';
+            html += '<span class="aportes-nombre">' + esc(rama.nombre) + '</span>';
             if (!rama.directa) {
                 html += ' <span class="aportes-anidada" title="La enlaza otra receta enlazada">(enlazada por otra)</span>';
             }
             if (rama.ingredientes.length) {
                 html += '<div class="aportes-detalle"><i class="fas fa-leaf"></i> ' +
-                        escapeHtml(rama.ingredientes.join(', ')) + '</div>';
+                        esc(rama.ingredientes.map(textoConSustitutos).join(', ')) + '</div>';
             }
             if (rama.utensilios.length) {
                 html += '<div class="aportes-detalle"><i class="fas fa-blender"></i> ' +
-                        escapeHtml(rama.utensilios.join(', ')) + '</div>';
+                        esc(rama.utensilios.join(', ')) + '</div>';
             }
             html += '</div>';
         });

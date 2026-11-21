@@ -471,11 +471,17 @@ def aportes_subrecetas(receta_id, recetas_data):
       'utensilios':   {utensilio: [nombres de subreceta que lo aportan]}
       'arbol':        [{'id', 'nombre', 'directa', 'ingredientes', 'utensilios'}, ...]
     La propia receta no se cuenta. Los enlaces rotos se ignoran y los bucles no
-    duplican ni cuelgan el recorrido (usa expandir_receta)."""
+    duplican ni cuelgan el recorrido (usa expandir_receta).
+
+    La clave sale con el nombre base más los sustitutos que trae la subreceta
+    («pasta[altern("pasta fresca|1 paquete")]»), así arriba también se ven. Para
+    casar un aporte con un ingrediente propio se compara solo el base: el cliente
+    quita el marcador al buscar (aportesDe / aportesExtras)."""
     ids, _rotos = expandir_receta(receta_id, recetas_data)
     directas = set(subrecetas_de_receta(recetas_data.get(receta_id) or {},
                                         nombres_de(recetas_data)))
-    aportes_ing, aportes_ut, arbol = {}, {}, []
+    aportes_ut, arbol = {}, []
+    orden, sustitutos, quien = [], {}, {}     # por nombre base
     for sub_id in ids:
         if sub_id == receta_id:
             continue
@@ -484,20 +490,35 @@ def aportes_subrecetas(receta_id, recetas_data):
             continue
         nombre = str(sub.get('nombre') or sub_id)
         normalizada = normalize_receta(sub)   # las claves como las enseña la API
-        # Para casar aportes con los ingredientes propios se usa el nombre base,
-        # sin el marcador de sustitutos (que el cliente añade al buscar).
-        ing = [ingredientes.canonico(k) for k in (normalizada.get('ingredientes') or {}).keys()]
+        bases_rama, sustitutos_rama = [], {}
+        for clave in (normalizada.get('ingredientes') or {}):
+            base, alts = ingredientes.separar_alternativo(clave)
+            base = ingredientes.canonico(base)
+            if not base:
+                continue
+            if base not in quien:
+                orden.append(base)
+                quien[base] = []
+            if nombre not in quien[base]:
+                quien[base].append(nombre)
+            if base not in bases_rama:
+                bases_rama.append(base)
+            for destino in (sustitutos.setdefault(base, []),
+                            sustitutos_rama.setdefault(base, [])):
+                for a in alts:
+                    if a not in destino:
+                        destino.append(a)
         ut = [str(u) for u in (normalizada.get('utensilios') or []) if str(u).strip()]
         arbol.append({'id': sub_id, 'nombre': nombre, 'directa': sub_id in directas,
-                      'ingredientes': sorted(ing), 'utensilios': ut})
-        for clave in ing:
-            lista = aportes_ing.setdefault(clave, [])
-            if nombre not in lista:
-                lista.append(nombre)
+                      'ingredientes': sorted(ingredientes.reconstruir_alternativo(b, sustitutos_rama.get(b, []))
+                                             for b in bases_rama),
+                      'utensilios': ut})
         for utensilio in ut:
             lista = aportes_ut.setdefault(utensilio, [])
             if nombre not in lista:
                 lista.append(nombre)
+    aportes_ing = {ingredientes.reconstruir_alternativo(b, sustitutos.get(b, [])): quien[b]
+                   for b in orden}
     arbol.sort(key=lambda a: (not a['directa'], a['nombre']))
     return {'ingredientes': aportes_ing, 'utensilios': aportes_ut, 'arbol': arbol}
 

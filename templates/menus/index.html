@@ -359,7 +359,9 @@
         }
         if (window.aportesExtras) {
             window.aportesExtras(aportes.ingredientes, Object.keys(receta.ingredientes || {})).forEach(function (extra) {
-                ingHtml += '<li class="item-aportado"><strong>' + escapeHtml(extra.clave) + '</strong> ' +
+                ingHtml += '<li class="item-aportado">' +
+                           (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(extra.clave)
+                                                         : '<strong>' + escapeHtml(extra.clave) + '</strong>') + ' ' +
                            etiqueta(aportes.ingredientes, extra.clave) + '</li>';
             });
         }

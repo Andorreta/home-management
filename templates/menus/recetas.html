@@ -263,7 +263,11 @@
                     (aporte ? ' ' + aporte : '') + '</li>';
         }
         extras.forEach(function (extra) {
-            html += '<li class="item-aportado"><strong>' + escapeHtml(extra.clave) + '</strong> ' +
+            // La clave del aporte ya trae sus sustitutos: se pintan igual que en
+            // los ingredientes propios (era el bug: heredados sin sustitutos).
+            html += '<li class="item-aportado">' +
+                    (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(extra.clave)
+                                                  : '<strong>' + escapeHtml(extra.clave) + '</strong>') + ' ' +
                     (window.aportesEtiqueta ? window.aportesEtiqueta(extra.nombres) : '') + '</li>';
         });
         html += '</ul>';
