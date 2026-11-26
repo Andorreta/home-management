@@ -135,4 +135,61 @@
         actualizarFlagGeneracion();
         setInterval(actualizarFlagGeneracion, 15000);
     }
+
+    /* ---------- Tema claro / oscuro ---------- */
+    // El tema inicial lo decide un script en <head> (preferencia guardada o sistema);
+    // aquí solo se alterna, se guarda y se pinta el botón.
+    function temaActual() {
+        return document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
+    }
+
+    function pintarBotonTema() {
+        const boton = document.getElementById('tema-toggle');
+        if (!boton) return;
+        const oscuro = temaActual() === 'dark';
+        const texto = oscuro ? 'Activar el modo claro' : 'Activar el modo oscuro';
+        boton.setAttribute('aria-pressed', oscuro ? 'true' : 'false');
+        boton.setAttribute('aria-label', texto);
+        boton.title = oscuro ? 'Modo claro' : 'Modo oscuro';
+        const icono = boton.querySelector('i');
+        if (icono) {
+            icono.className = 'fas ' + (oscuro ? 'fa-sun' : 'fa-moon');
+        }
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', oscuro ? '#101419' : '#007bff');
+    }
+
+    const botonTema = document.getElementById('tema-toggle');
+    if (botonTema) {
+        pintarBotonTema();
+        botonTema.addEventListener('click', function () {
+            const nuevo = temaActual() === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-bs-theme', nuevo);
+            try { localStorage.setItem('hm-tema', nuevo); } catch (e) {}
+            pintarBotonTema();
+            // Quien pinte gráficos puede volver a pintarlos con los colores del tema.
+            window.dispatchEvent(new CustomEvent('hm-tema-cambiado', { detail: { tema: nuevo } }));
+        });
+    }
+
+    /* ---------- Cabecera pegajosa y «volver arriba» ---------- */
+    const volverArriba = document.getElementById('volver-arriba');
+    if (volverArriba) {
+        volverArriba.addEventListener('click', function () {
+            const sinMovimiento = window.matchMedia &&
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: sinMovimiento ? 'auto' : 'smooth' });
+        });
+    }
+
+    function alDesplazar() {
+        const y = window.scrollY || window.pageYOffset || 0;
+        document.body.classList.toggle('cabecera-compacta', y > 60);
+        if (volverArriba) volverArriba.hidden = y < 600;
+    }
+
+    if (document.querySelector('.header')) {
+        alDesplazar();
+        window.addEventListener('scroll', alDesplazar, { passive: true });
+    }
 })();

@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#007bff">
     <title>{% block title %}Home Management{% endblock %}</title>
+    <!-- El tema se decide antes de pintar: preferencia guardada o, si no hay, el sistema -->
+    <script>
+        (function () {
+            var tema = null;
+            try { tema = localStorage.getItem('hm-tema'); } catch (e) {}
+            if (!tema) {
+                tema = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', tema);
+        })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
@@ -15,6 +27,10 @@
 
     <header class="header">
         <div class="container">
+            <button type="button" class="tema-toggle" id="tema-toggle"
+                    aria-pressed="false" aria-label="Activar el modo oscuro" title="Modo oscuro">
+                <i class="fas fa-moon" aria-hidden="true"></i>
+            </button>
             <h1>
                 <i class="fas {% block header_icon %}fa-house{% endblock %}" aria-hidden="true"></i>
                 {% block header_title %}Home Management{% endblock %}
@@ -66,13 +82,19 @@
         </div>
     </footer>
 
+    <!-- Vuelve al principio en las páginas largas (lista de recetas, plan semanal) -->
+    <button type="button" class="volver-arriba" id="volver-arriba" hidden
+            aria-label="Volver arriba" title="Volver arriba">
+        <i class="fas fa-arrow-up" aria-hidden="true"></i>
+    </button>
+
     <!-- Confirmación reutilizable (sustituye a window.confirm) -->
     <div class="modal fade" id="confirm-modal" tabindex="-1"
          aria-labelledby="confirm-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="confirm-modal-title">Confirmar</h5>
+                    <h3 class="modal-title" id="confirm-modal-title">Confirmar</h3>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body" id="confirm-modal-body"></div>
@@ -90,10 +112,10 @@
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="subreceta-modal-titulo">
+                    <h3 class="modal-title" id="subreceta-modal-titulo">
                         <i class="fas fa-diagram-project" aria-hidden="true"></i>
                         <span id="subreceta-modal-titulo-texto">Subreceta</span>
-                    </h5>
+                    </h3>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body" id="subreceta-modal-body"></div>

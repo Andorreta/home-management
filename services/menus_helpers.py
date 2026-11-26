@@ -469,6 +469,7 @@ def aportes_subrecetas(receta_id, recetas_data):
     Devuelve un dict con:
       'ingredientes': {clave: [nombres de subreceta que la aportan]}  (a cualquier nivel)
       'utensilios':   {utensilio: [nombres de subreceta que lo aportan]}
+      'cantidades':   {clave: cantidad aportada}  (lo heredado que no está arriba)
       'arbol':        [{'id', 'nombre', 'directa', 'ingredientes', 'utensilios'}, ...]
     La propia receta no se cuenta. Los enlaces rotos se ignoran y los bucles no
     duplican ni cuelgan el recorrido (usa expandir_receta).
@@ -481,7 +482,7 @@ def aportes_subrecetas(receta_id, recetas_data):
     directas = set(subrecetas_de_receta(recetas_data.get(receta_id) or {},
                                         nombres_de(recetas_data)))
     aportes_ut, arbol = {}, []
-    orden, sustitutos, quien = [], {}, {}     # por nombre base
+    orden, sustitutos, quien, cantidades = [], {}, {}, {}   # por nombre base
     for sub_id in ids:
         if sub_id == receta_id:
             continue
@@ -491,11 +492,17 @@ def aportes_subrecetas(receta_id, recetas_data):
         nombre = str(sub.get('nombre') or sub_id)
         normalizada = normalize_receta(sub)   # las claves como las enseña la API
         bases_rama, sustitutos_rama = [], {}
-        for clave in (normalizada.get('ingredientes') or {}):
+        for clave, valor in (normalizada.get('ingredientes') or {}).items():
             base, alts = ingredientes.separar_alternativo(clave)
             base = ingredientes.canonico(base)
             if not base:
                 continue
+            # Cuánto trae la rama: lo heredado que la receta de arriba no escribe
+            # lleva también su cantidad en la lista (no solo el nombre).
+            if base in cantidades:
+                cantidades[base] = ingredientes.fusionar_valores(cantidades[base], valor)
+            else:
+                cantidades[base] = valor
             if base not in quien:
                 orden.append(base)
                 quien[base] = []
@@ -519,8 +526,13 @@ def aportes_subrecetas(receta_id, recetas_data):
                 lista.append(nombre)
     aportes_ing = {ingredientes.reconstruir_alternativo(b, sustitutos.get(b, [])): quien[b]
                    for b in orden}
+    # La cantidad total se queda en la misma clave reconstruida que los nombres.
+    aportes_cant = {ingredientes.reconstruir_alternativo(b, sustitutos.get(b, [])):
+                    ingredientes._valor_a_texto(cantidades[b])
+                    for b in orden if cantidades.get(b) is not None}
     arbol.sort(key=lambda a: (not a['directa'], a['nombre']))
-    return {'ingredientes': aportes_ing, 'utensilios': aportes_ut, 'arbol': arbol}
+    return {'ingredientes': aportes_ing, 'utensilios': aportes_ut,
+            'cantidades': aportes_cant, 'arbol': arbol}
 
 
 def renombrar_referencias(recetas_data, menus_data, viejo, nuevo):

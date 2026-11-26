@@ -28,7 +28,8 @@
             <div class="card-body">
                 <h2 id="grafico-titulo"><i class="fas fa-chart-column"></i> Último año</h2>
                 <div class="chart-wrap">
-                    <canvas id="grafico" role="img" aria-label="Gráfico de ingresos positivos, gastos negativos y balance acumulado"></canvas>
+                    <canvas id="grafico" role="img" aria-label="Gráfico de ingresos positivos, gastos negativos y balance acumulado"
+                            aria-describedby="grafico-resumen"></canvas>
                 </div>
                 <p id="grafico-resumen" class="visually-hidden"></p>
             </div>
@@ -43,8 +44,13 @@
 
                 <div class="row g-3 align-items-end mb-3">
                     <div class="col-12 col-sm-5 col-md-4">
-                        <label for="mov-mes" class="form-label">Mes</label>
-                        <input type="month" id="mov-mes" class="form-control">
+                        <!-- Dos selectores en vez de type="month": el mes se elige igual en
+                             cualquier navegador (Firefox de escritorio no lo soporta bien) -->
+                        <label for="mov-mes-mes" class="form-label">Mes</label>
+                        <div class="selector-mes">
+                            <select id="mov-mes-mes" class="form-select mes-nombre" aria-label="Mes del filtro"></select>
+                            <select id="mov-mes-ano" class="form-select mes-anio" aria-label="Año del filtro"></select>
+                        </div>
                     </div>
                     <div class="col-12 col-sm-7 col-md-5">
                         <label for="filtro-categoria" class="form-label">Categoría</label>
@@ -102,7 +108,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="movimiento-modal-titulo"><i class="fas fa-plus-circle"></i> Nuevo movimiento</h5>
+                <h3 class="modal-title" id="movimiento-modal-titulo"><i class="fas fa-plus-circle"></i> Nuevo movimiento</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="movimiento-form" onsubmit="return guardarMovimiento(event)">
@@ -201,6 +207,40 @@
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     }
 
+    // Selector de mes: los <option> se generan una vez y el valor elegido se lee
+    // como ISO (YYYY-MM), igual que hacia el antiguo input type="month".
+    function pintarSelectorMes() {
+        const mes = $('#mov-mes-mes').empty();
+        NOMBRES_MES.forEach(function (nombre, i) {
+            mes.append('<option value="' + String(i + 1).padStart(2, '0') + '">' + nombre + '</option>');
+        });
+        const anio = new Date().getFullYear();
+        const anos = $('#mov-mes-ano').empty();
+        for (let y = anio; y >= anio - 10; y--) {
+            anos.append('<option value="' + y + '">' + y + '</option>');
+        }
+    }
+
+    function mesSeleccionadoISO() {
+        if (!$('#mov-mes-mes').val() || !$('#mov-mes-ano').val()) return '';
+        return $('#mov-mes-ano').val() + '-' + $('#mov-mes-mes').val();
+    }
+
+    function fijarMes(iso) {
+        const partes = String(iso || '').split('-');
+        if (partes.length !== 2) return;
+        const anio = parseInt(partes[0], 10);
+        const mes = parseInt(partes[1], 10);
+        if (isNaN(anio) || isNaN(mes)) return;
+        const numero = String(mes).padStart(2, '0');
+        if ($('#mov-mes-mes option[value="' + numero + '"]').length) $('#mov-mes-mes').val(numero);
+        // Si el año no está en la lista (un movimiento antiguo), se añade para poder verlo.
+        if (!$('#mov-mes-ano option[value="' + anio + '"]').length) {
+            $('#mov-mes-ano').append('<option value="' + anio + '">' + anio + '</option>');
+        }
+        $('#mov-mes-ano').val(String(anio));
+    }
+
     function rangoMes(mes) {
         const [anio, numeroMes] = mes.split('-').map(Number);
         const ultimoDia = new Date(anio, numeroMes, 0).getDate();
@@ -230,10 +270,10 @@
     }
 
     function cargarMovimientos() {
-        let mes = $('#mov-mes').val();
+        let mes = mesSeleccionadoISO();
         if (!mes) {
             mes = mesActualISO();
-            $('#mov-mes').val(mes);
+            fijarMes(mes);
         }
         const rango = rangoMes(mes);
         const params = new URLSearchParams({
@@ -262,8 +302,17 @@
         cargarMovimientos();
     }
 
+    // Colores que dependen del tema (claro/oscuro) para ejes y leyenda del gráfico
+    function colorTema(variable, porDefecto) {
+        const valor = getComputedStyle(document.documentElement)
+            .getPropertyValue(variable).trim();
+        return valor || porDefecto;
+    }
+
     function pintarGrafico(datos) {
         const resumen = datos.actual || [];
+        const tinta = colorTema('--hm-chart-text', '#495057');
+        const rejilla = colorTema('--hm-chart-grid', '#dee2e6');
         const titulos = { 1: 'Este mes vs. mismo mes del año pasado', 3: 'Últimos 3 meses' };
         $('#grafico-titulo').html('<i class="fas fa-chart-column"></i> ' + (titulos[meses] || 'Último año'));
 
@@ -311,7 +360,7 @@
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { boxWidth: 12, padding: 10, font: { size: 11 } }
+                        labels: { boxWidth: 12, padding: 10, font: { size: 11 }, color: tinta }
                     },
                     tooltip: {
                         callbacks: {
@@ -322,7 +371,7 @@
                 },
                 scales: {
                     x: {
-                        ticks: { maxRotation: 0, autoSkip: true, font: { size: 10 } },
+                        ticks: { maxRotation: 0, autoSkip: true, font: { size: 10 }, color: tinta },
                         grid: { display: false }
                     },
                     y: {
@@ -330,8 +379,10 @@
                         ticks: {
                             callback: v => fmtEUR.format(v),
                             font: { size: 10 },
-                            maxTicksLimit: 6
-                        }
+                            maxTicksLimit: 6,
+                            color: tinta
+                        },
+                        grid: { color: rejilla }
                     }
                 }
             }
@@ -356,7 +407,7 @@
     }
 
     function pintarMovimientos(movs) {
-        const mes = $('#mov-mes').val();
+        const mes = mesSeleccionadoISO();
         const categoria = $('#filtro-categoria').val();
         const tituloMes = mes ? nombreMes(mes) : 'mes seleccionado';
         $('#movimientos-titulo').html(
@@ -387,14 +438,14 @@
 
         const filas = movs.map(m => {
             const signo = m.tipo === 'gasto' ? '-' : '+';
-            const color = m.tipo === 'gasto' ? '#e15759' : '#59a14f';
+            const claseTipo = m.tipo === 'gasto' ? 'gasto' : 'ingreso';
             const icono = m.tipo === 'gasto' ? 'fa-arrow-down' : 'fa-arrow-up';
             return '<tr>' +
                 '<td data-label="Fecha">' + formatearFecha(m.fecha) + '</td>' +
-                '<td data-label="Categoría"><i class="fas ' + icono + '" style="color:' + color + '" aria-hidden="true"></i> ' + escapeHtml(m.categoria || m.tipo) +
+                '<td data-label="Categoría"><i class="fas ' + icono + ' mov-icono-' + claseTipo + '" aria-hidden="true"></i> ' + escapeHtml(m.categoria || m.tipo) +
                     (m.ticket_path ? ' <a href="/gastos/ticket/' + m.id + '" target="_blank" rel="noopener" aria-label="Ver foto del ticket"><i class="fas fa-paperclip" aria-hidden="true"></i></a>' : '') + '</td>' +
                 '<td data-label="Descripción">' + escapeHtml(m.descripcion) + '</td>' +
-                '<td data-label="Importe" style="color:' + color + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
+                '<td data-label="Importe" class="mov-importe-' + claseTipo + '">' + signo + fmtEUR.format(m.importe) + '</td>' +
                 '<td data-label="" class="text-end">' +
                     '<button type="button" class="btn btn-sm btn-outline-secondary" title="Editar" aria-label="Editar movimiento" onclick="editarMovimiento(' + m.id + ')"><i class="fas fa-pen" aria-hidden="true"></i></button> ' +
                     '<button type="button" class="btn btn-sm btn-outline-danger" title="Borrar" aria-label="Borrar movimiento" onclick="borrarMovimiento(' + m.id + ')"><i class="fas fa-trash" aria-hidden="true"></i></button>' +
@@ -501,7 +552,7 @@
             cerrarModal();
             limpiarFormulario();
             // Mostrar el mes del movimiento guardado (también al editar una fecha).
-            if (guardado && guardado.fecha) $('#mov-mes').val(guardado.fecha.slice(0, 7));
+            if (guardado && guardado.fecha) fijarMes(guardado.fecha.slice(0, 7));
             cargarTodo();
             mostrarToast('Movimiento guardado.', 'success');
         }).fail(function (xhr) {
@@ -560,10 +611,17 @@
         }, { textoBoton: 'Borrar' });
     }
 
+    // El gráfico usa colores del tema: al cambiarlo se vuelve a pintar con los nuevos.
+    window.addEventListener('hm-tema-cambiado', function () {
+        if (chart) { chart.destroy(); chart = null; }
+        cargarTodo();
+    });
+
     $(function () {
         $('#mov-fecha').val(hoyISO());
-        $('#mov-mes').val(mesActualISO());
-        $('#mov-mes').on('change', cargarMovimientos);
+        pintarSelectorMes();
+        fijarMes(mesActualISO());
+        $('#mov-mes-mes, #mov-mes-ano').on('change', cargarMovimientos);
         $('#filtro-categoria').on('change', cargarMovimientos);
         $('#selector-periodo button').on('click', function () {
             $('#selector-periodo button').removeClass('active').attr('aria-pressed', 'false');

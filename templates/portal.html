@@ -6,25 +6,47 @@
 {% block header_subtitle %}La casa, en un solo sitio{% endblock %}
 
 {% block content %}
-<div class="row g-4 portal-cards">
-    <div class="col-md-6">
+<div class="row g-3 portal-cards">
+    <div class="col-6 col-lg-3">
         <a href="{{ url_for('menus.index') }}" class="portal-card">
             <div class="card text-center h-100">
                 <div class="card-body">
                     <div class="portal-icon"><i class="fas fa-calendar-week" aria-hidden="true"></i></div>
-                    <h2 class="card-title">Ver menús</h2>
-                    <p class="card-text text-muted">Menús semanales, recetas y lista de la compra.</p>
+                    <h2 class="card-title">Menús</h2>
+                    <p class="card-text text-muted">Plan semanal y lista de la compra.</p>
                 </div>
             </div>
         </a>
     </div>
-    <div class="col-md-6">
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('menus.recetas') }}" class="portal-card">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="portal-icon"><i class="fas fa-book-open" aria-hidden="true"></i></div>
+                    <h2 class="card-title">Recetas</h2>
+                    <p class="card-text text-muted">Las recetas guardadas y sus subrecetas.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for('menus.generar') }}" class="portal-card">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="portal-icon"><i class="fas fa-magic" aria-hidden="true"></i></div>
+                    <h2 class="card-title">Generar menú</h2>
+                    <p class="card-text text-muted">La IA propone la semana con tus preferencias.</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
         <a href="{{ url_for('gastos.index') }}" class="portal-card">
             <div class="card text-center h-100">
                 <div class="card-body">
                     <div class="portal-icon"><i class="fas fa-receipt" aria-hidden="true"></i></div>
-                    <h2 class="card-title">Ver gastos</h2>
-                    <p class="card-text text-muted">Gastos e ingresos de la casa, con gráficos y balance mensual.</p>
+                    <h2 class="card-title">Gastos</h2>
+                    <p class="card-text text-muted">Movimientos y balance mensual.</p>
                 </div>
             </div>
         </a>

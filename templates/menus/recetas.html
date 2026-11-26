@@ -14,19 +14,19 @@
         <div class="menu-card">
             <h2><i class="fas fa-book-open"></i> Recetas guardadas</h2>
 
-            <div class="mb-4 d-flex gap-2 flex-wrap align-items-center">
-                <button class="btn btn-primary btn-lg" id="recetaBtn" type="button"
+            <div class="vista-acciones">
+                <button class="btn btn-outline-primary" id="recetaBtn" type="button"
                         onclick="toggleRecipeList()" aria-expanded="false" aria-controls="recipe-list-card">
                     <i class="fas fa-list"></i> Ver recetas
                 </button>
-                <button class="btn btn-success btn-lg" type="button" onclick="abrirModalReceta(null)">
+                <button class="btn btn-primary" type="button" onclick="abrirModalReceta(null)">
                     <i class="fas fa-plus-circle"></i> Nueva receta
                 </button>
-                <span id="recetaStatus" class="text-muted small" role="status" aria-live="polite">Cargando…</span>
             </div>
+            <span id="recetaStatus" class="estado-vista" role="status" aria-live="polite">Cargando…</span>
 
             <div id="recipe-list-card" class="calendar-card" style="display: none;">
-                <div class="section-title"><i class="fas fa-search"></i> Todas las recetas</div>
+                <h3 class="section-title"><i class="fas fa-search"></i> Todas las recetas</h3>
                 <label class="form-label" for="recipe-search">Filtrar por nombre</label>
                 <input type="text" id="recipe-search" class="form-control mb-2" placeholder="Ej.: arroz, pollo…" oninput="renderRecipeList()">
                 <div id="recipe-list" class="recipe-list"></div>
@@ -47,7 +47,7 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="receta-modal-titulo"><i class="fas fa-plus-circle"></i> Nueva receta</h5>
+                <h3 class="modal-title" id="receta-modal-titulo"><i class="fas fa-plus-circle"></i> Nueva receta</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form id="receta-form" onsubmit="return guardarReceta(event)">
@@ -79,7 +79,7 @@
                             </details>
                         </div>
                         <div class="col-12">
-                            <div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div>
+                            <h4 class="section-title"><i class="fas fa-leaf"></i> Ingredientes</h4>
                             <p class="text-muted small mb-2">
                                 <i class="fas fa-info-circle"></i>
                                 Escribe y elige una sugerencia. Los nombres se guardan en forma estándar
@@ -92,7 +92,7 @@
                             </button>
                         </div>
                         <div class="col-md-5">
-                            <div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>
+                            <h4 class="section-title"><i class="fas fa-blender"></i> Utensilios</h4>
                             <p class="text-muted small mb-2">
                                 <i class="fas fa-info-circle"></i> Uno por caja.
                                 <i class="fas fa-plus"></i> añade otra y
@@ -101,7 +101,7 @@
                             <div id="rc-utensilios-lista" class="fila-lista"></div>
                         </div>
                         <div class="col-md-7">
-                            <div class="section-title"><i class="fas fa-clipboard-list"></i> Pasos</div>
+                            <h4 class="section-title"><i class="fas fa-clipboard-list"></i> Pasos</h4>
                             <p class="text-muted small mb-2">
                                 <i class="fas fa-info-circle"></i> Uno por caja: la caja se hace más alta sola
                                 si el paso es largo, pero es mejor separar en pasos lo que se pueda.
@@ -235,7 +235,9 @@
 
     function buildIngredientListHtml(ingredientes, aportes) {
         const propios = ingredientes || {};
-        const extras = window.aportesExtras ? window.aportesExtras(aportes, Object.keys(propios)) : [];
+        const mapa = (aportes && aportes.ingredientes) || aportes || {};
+        const cantidades = (aportes && aportes.cantidades) || {};
+        const extras = window.aportesExtras ? window.aportesExtras(mapa, Object.keys(propios)) : [];
         if (!Object.keys(propios).length && !extras.length) {
             return '<p class="text-muted"><i class="fas fa-info-circle"></i> Ninguno</p>';
         }
@@ -255,7 +257,7 @@
             const optionalClass = opcional ? ' optional-ingredient' : '';
             // Lo que llega de una receta enlazada se marca aparte para que no se repita
             const aporte = window.aportesEtiqueta
-                ? window.aportesEtiqueta(window.aportesDe(aportes, ingrediente)) : '';
+                ? window.aportesEtiqueta(window.aportesDe(mapa, ingrediente)) : '';
             html += '<li class="' + optionalClass + (aporte ? ' item-aportado' : '') + '">' +
                     (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(ingrediente)
                                                   : '<strong>' + escapeHtml(ingrediente) + '</strong>') +
@@ -265,9 +267,12 @@
         extras.forEach(function (extra) {
             // La clave del aporte ya trae sus sustitutos: se pintan igual que en
             // los ingredientes propios (era el bug: heredados sin sustitutos).
+            // Con su cantidad: lo que trae la subreceta no siempre está arriba.
+            const qty = cantidades[extra.clave];
             html += '<li class="item-aportado">' +
                     (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(extra.clave)
-                                                  : '<strong>' + escapeHtml(extra.clave) + '</strong>') + ' ' +
+                                                  : '<strong>' + escapeHtml(extra.clave) + '</strong>') +
+                    (qty ? ': ' + escapeHtml(qty) : '') + ' ' +
                     (window.aportesEtiqueta ? window.aportesEtiqueta(extra.nombres) : '') + '</li>';
         });
         html += '</ul>';
@@ -310,17 +315,17 @@
         const aportes = receta.aportes_subrecetas || {};
         html += '<div class="row recipe-top">';
         html += '<div class="col-md-6">';
-        html += '<div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div>';
-        html += buildIngredientListHtml(receta.ingredientes, aportes.ingredientes);
+        html += '<h4 class="section-title"><i class="fas fa-leaf"></i> Ingredientes</h4>';
+        html += buildIngredientListHtml(receta.ingredientes, aportes);
         html += '</div>';
         html += '<div class="col-md-6">';
-        html += '<div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>';
+        html += '<h4 class="section-title"><i class="fas fa-blender"></i> Utensilios</h4>';
         html += buildUtensiliosHtml(receta.utensilios, aportes.utensilios);
         html += '</div>';
         html += '</div>';
 
         // Debajo: la receta (pasos)
-        html += '<div class="section-title"><i class="fas fa-clipboard-list"></i> Receta</div>';
+        html += '<h4 class="section-title"><i class="fas fa-clipboard-list"></i> Receta</h4>';
         if (receta.pasos && receta.pasos.length) {
             // Un paso puede enlazar una subreceta: window.pasosHtml (static/js/subrecetas.js)
             const pasos = window.pasosHtml
@@ -332,7 +337,7 @@
         }
 
         if (receta.notas) {
-            html += '<div class="section-title"><i class="fas fa-sticky-note"></i> Notas</div>';
+            html += '<h4 class="section-title"><i class="fas fa-sticky-note"></i> Notas</h4>';
             html += '<p>' + escapeHtml(receta.notas) + '</p>';
         }
 
@@ -343,7 +348,7 @@
         const guardada = allRecipes.find(r => r.id === currentRecipeId) || {};
         const usadasPor = guardada.usada_por || [];
         if (usadasPor.length) {
-            html += '<div class="section-title"><i class="fas fa-diagram-project"></i> La usan como subreceta</div>';
+            html += '<h4 class="section-title"><i class="fas fa-diagram-project"></i> La usan como subreceta</h4>';
             html += '<p class="sub-usan">' + usadasPor.map(function (id) {
                 const r = allRecipes.find(x => x.id === id);
                 return '<button type="button" class="subreceta-chip" data-subreceta="' + escapeHtml(id) + '"' +
@@ -432,22 +437,24 @@
         const opciones = UNIDADES_INGREDIENTE.map(function (u) {
             return '<option value="' + escapeHtml(u[0]) + '">' + escapeHtml(u[1]) + '</option>';
         }).join('');
-        const fila = $('<div class="row g-2 mb-2 ing-row">' +
+        // Una caja suave por ingrediente (como los pasos), con el nombre primero y la
+        // cantidad más ancha que la unidad: es el dato que se corrige al revisar.
+        const fila = $('<div class="ing-row"><div class="row g-2">' +
             '<div class="col-md-4 ing-nombre-col">' +
             '<input type="text" class="form-control ing-nombre" autocomplete="off" aria-label="Nombre del ingrediente" aria-autocomplete="list" aria-expanded="false" placeholder="aceite de oliva">' +
             '<div class="ing-alterns mt-1"></div>' +
-            '<button type="button" class="btn btn-link btn-sm altern-add ps-0" aria-label="Añadir sustituto">+ sustituto</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary altern-add" aria-label="Añadir sustituto"><i class="fas fa-plus" aria-hidden="true"></i> sustituto</button>' +
             '<div class="ing-sugerencias" role="listbox" aria-label="Sugerencias de ingredientes" hidden></div>' +
             '<div class="ing-hint small mt-1" hidden></div>' +
             '</div>' +
-            '<div class="col-md-5 d-flex align-items-center gap-2">' +
-            '<input type="text" inputmode="decimal" class="form-control ing-val" style="max-width:6.5rem" aria-label="Cantidad (número)" placeholder="200">' +
+            '<div class="col-md-5 ing-cantidad">' +
+            '<input type="text" inputmode="decimal" class="form-control ing-val" aria-label="Cantidad (número)" placeholder="200">' +
             '<select class="form-select ing-unidad" aria-label="Unidad de la cantidad">' + opciones + '</select>' +
             '</div>' +
             '<div class="col-md-3 d-flex align-items-center gap-2">' +
-            '<label class="small mb-0">opc.<input type="checkbox" class="form-check-input ing-opcional ms-1"></label>' +
+            '<label class="ing-opcional-label"><input type="checkbox" class="form-check-input ing-opcional"> opcional</label>' +
             '<button type="button" class="btn btn-outline-secondary btn-sm" title="Quitar" aria-label="Quitar ingrediente" onclick="$(this).closest(\'.ing-row\').remove()"><i class="fas fa-times" aria-hidden="true"></i></button>' +
-            '</div></div>');
+            '</div></div></div>');
         const descompuesto = descomponAlternativas(nombre);
         fila.find('.ing-nombre').val(descompuesto.nombre);
         descompuesto.alts.forEach(function (alt) {

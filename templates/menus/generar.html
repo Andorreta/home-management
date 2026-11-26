@@ -26,7 +26,7 @@
                     <input type="text" id="fecha-fin" class="form-control" readonly>
                 </div>
                 <div class="col-md-4">
-                    <button class="btn btn-primary btn-lg w-100" id="generarBtn" type="button" onclick="generarMenu()">
+                    <button class="btn btn-primary w-100" id="generarBtn" type="button" onclick="generarMenu()">
                         <i class="fas fa-wand-magic-sparkles"></i> Generar menú
                     </button>
                 </div>
@@ -50,7 +50,7 @@
             </div>
 
             <div id="prefs-card" class="calendar-card" style="display: none;">
-                <div class="section-title"><i class="fas fa-user-check"></i> Preferencias y restricciones</div>
+                <h3 class="section-title"><i class="fas fa-user-check"></i> Preferencias y restricciones</h3>
                 <div id="prefs-body"><p class="text-muted" role="status">Cargando...</p></div>
             </div>
 
@@ -173,24 +173,24 @@
                 prefsLoaded = true;
                 let html = '';
                 if (p.descripcion) html += '<p class="text-muted small">' + escapeHtml(p.descripcion) + '</p>';
-                html += '<div class="section-title"><i class="fas fa-ban"></i> Restricciones</div><ul class="ingredient-list">';
+                html += '<h4 class="section-title"><i class="fas fa-ban"></i> Restricciones</h4><ul class="ingredient-list">';
                 (p.restricciones || []).forEach(function(r) { html += '<li>' + escapeHtml(r) + '</li>'; });
                 html += '</ul>';
                 if (p.favoritas && p.favoritas.length) {
-                    html += '<div class="section-title"><i class="fas fa-star"></i> Recetas favoritas (se pueden repetir aunque sean recientes)</div><div>';
+                    html += '<h4 class="section-title"><i class="fas fa-star"></i> Recetas favoritas (se pueden repetir aunque sean recientes)</h4><div>';
                     p.favoritas.forEach(function(f) {
                         html += '<span class="pref-chip">' + escapeHtml(recetaNombres[f] || f) + '</span>';
                     });
                     html += '</div>';
                 }
-                html += '<div class="section-title"><i class="fas fa-history"></i> Platos habituales</div><div>';
+                html += '<h4 class="section-title"><i class="fas fa-history"></i> Platos habituales</h4><div>';
                 (p.platos_habituales || []).forEach(function(pl) { html += '<span class="pref-chip">' + escapeHtml(pl) + '</span>'; });
                 html += '</div>';
-                html += '<div class="section-title"><i class="fas fa-rotate"></i> Anti-repetición</div>';
+                html += '<h4 class="section-title"><i class="fas fa-rotate"></i> Anti-repetición</h4>';
                 html += '<p>No se repiten las recetas de las últimas <strong>' + escapeHtml(p.evitar_repetir_de_semanas || 0) + '</strong> semanas (las favoritas se salvan de la exclusión).</p>';
 
                 // Despensa básica (editable): no va a la lista de la compra
-                html += '<div class="section-title"><i class="fas fa-home"></i> Despensa básica <span class="text-muted small">(nunca aparece en la lista de la compra)</span></div>';
+                html += '<h4 class="section-title"><i class="fas fa-home"></i> Despensa básica <span class="text-muted small">(nunca aparece en la lista de la compra)</span></h4>';
                 html += '<p class="text-muted small">Ingredientes que siempre tienes en casa. Se excluyen de la lista cuando una receta los lleva (coincidencia por palabra: "sal" quita "sal" y "sal gruesa", pero no "salmón").</p>';
                 html += '<div class="input-group">' +
                         '<input type="text" id="prefs-despensa" class="form-control" aria-label="Despensa básica" value="' +

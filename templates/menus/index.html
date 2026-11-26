@@ -15,22 +15,22 @@
         <div class="menu-card">
             <h2><i class="fas fa-calendar-week"></i> Semana actual</h2>
 
-            <div class="mb-4 d-flex gap-2 flex-wrap align-items-center">
-                <button class="btn btn-primary btn-lg" id="menuBtn" type="button"
+            <div class="vista-acciones">
+                <button class="btn btn-outline-primary" id="menuBtn" type="button"
                         onclick="toggleCalendar()" aria-expanded="false" aria-controls="calendar-card">
                     <i class="fas fa-calendar-alt"></i> Ver calendario
                 </button>
-                <button class="btn btn-success btn-lg" type="button" onclick="abrirModalMenuNuevo()">
+                <button class="btn btn-primary" type="button" onclick="abrirModalMenuNuevo()">
                     <i class="fas fa-plus-circle"></i> Nuevo menú
                 </button>
-                <span id="menuStatus" class="text-muted small" role="status" aria-live="polite">Cargando…</span>
             </div>
+            <span id="menuStatus" class="estado-vista" role="status" aria-live="polite">Cargando…</span>
             
             <div id="calendar-card" class="calendar-card" style="display: none;">
                 <div class="calendar-wrap">
                     <div id="calendar"></div>
                     <div class="calendar-side">
-                        <div class="section-title"><i class="fas fa-palette"></i> Menús disponibles</div>
+                        <h3 class="section-title"><i class="fas fa-palette"></i> Menús disponibles</h3>
                         <div id="calendar-legend"></div>
                         <p class="text-muted small mt-2">Pulse un día con color para ver ese menú.</p>
                     </div>
@@ -52,7 +52,7 @@
     <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="menu-nuevo-titulo"><i class="fas fa-plus-circle"></i> Menú nuevo</h5>
+                <h3 class="modal-title" id="menu-nuevo-titulo"><i class="fas fa-plus-circle"></i> Menú nuevo</h3>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <form onsubmit="return crearMenuNuevo(event)">
@@ -148,6 +148,17 @@
         $('#menuStatus').text(m ? 'Menú del ' + fmtRange(m) : 'Sin menú activo');
     }
 
+    // Tinte claro del color del menú (35 % color + 65 % blanco): el número oscuro
+    // cumple contraste AA en toda la paleta; el color puro se queda en la leyenda.
+    function tonoClaro(color) {
+        const limpio = String(color || '').replace('#', '').trim();
+        if (!/^[0-9a-fA-F]{6}$/.test(limpio)) return '';
+        const canales = [0, 2, 4].map(i => parseInt(limpio.slice(i, i + 2), 16));
+        return '#' + canales.map(function (v) {
+            return Math.round(v * 0.35 + 255 * 0.65).toString(16).padStart(2, '0');
+        }).join('');
+    }
+
     function toggleCalendar() {
         const card = $('#calendar-card');
         const btn = $('#menuBtn');
@@ -173,6 +184,7 @@
                 if (menu) {
                     dayElem.classList.add('menu-day');
                     dayElem.style.setProperty('--menu-color', menu.color);
+                    dayElem.style.setProperty('--menu-fill', tonoClaro(menu.color));
                     dayElem.title = menu.titulo;
                     dayElem.setAttribute('role', 'button');
                     dayElem.setAttribute('tabindex', '0');
@@ -260,7 +272,7 @@
             html += '</ul></div>';
         }
 
-        // Lista de la compra
+        // Lista de la compra: plegada como siempre (la app se consulta en casa, no en el súper)
         html += '<details class="shopping-list">';
         html += '<summary><span class="shopping-list-title"><i class="fas fa-shopping-cart"></i> Lista de la compra</span></summary>';
         if (data.despensa_base && data.despensa_base.length) {
@@ -270,19 +282,19 @@
 
         html += '<div class="row">';
         html += '<div class="col-md-6">';
-        html += '<div class="section-title"><i class="fas fa-check-circle"></i> Obligatorios</div>';
+        html += '<h4 class="section-title"><i class="fas fa-check-circle"></i> Obligatorios</h4>';
         html += buildShoppingListHtml(data.mandatory_ingredients);
         html += '</div>';
 
         html += '<div class="col-md-6">';
-        html += '<div class="section-title"><i class="fas fa-star"></i> Opcionales</div>';
+        html += '<h4 class="section-title"><i class="fas fa-star"></i> Opcionales</h4>';
         html += buildShoppingListHtml(data.optional_ingredients);
         html += '</div>';
         html += '</div>';
         html += '</details>';
 
         // Plan Semanal
-        html += '<h3><i class="fas fa-utensils"></i> Plan semanal</h3>';
+        html += '<h3 class="section-title"><i class="fas fa-utensils"></i> Plan semanal</h3>';
 
         (menu.dias || []).forEach(function(d) {
             html += '<div class="day-card">';
@@ -358,10 +370,13 @@
             }
         }
         if (window.aportesExtras) {
+            const cantidades = aportes.cantidades || {};
             window.aportesExtras(aportes.ingredientes, Object.keys(receta.ingredientes || {})).forEach(function (extra) {
+                const qty = cantidades[extra.clave];
                 ingHtml += '<li class="item-aportado">' +
                            (window.nombreIngredienteHtml ? window.nombreIngredienteHtml(extra.clave)
-                                                         : '<strong>' + escapeHtml(extra.clave) + '</strong>') + ' ' +
+                                                         : '<strong>' + escapeHtml(extra.clave) + '</strong>') +
+                           (qty ? ': ' + escapeHtml(qty) : '') + ' ' +
                            etiqueta(aportes.ingredientes, extra.clave) + '</li>';
             });
         }
@@ -389,19 +404,15 @@
             <div class="sub-details">
                 <div class="row">
                     <div class="col-md-6">
-                        <details>
-                            <summary><i class="fas fa-leaf"></i> <strong>Ingredientes</strong></summary>
-                            <ul class="ingredient-list">` + ingHtml + `</ul>
-                        </details>
+                        <h4 class="section-title"><i class="fas fa-leaf"></i> Ingredientes</h4>
+                        <ul class="ingredient-list">` + ingHtml + `</ul>
                     </div>
                     <div class="col-md-6">
-                        <details>
-                            <summary><i class="fas fa-blender"></i> <strong>Utensilios</strong></summary>
-                            <ul class="ingredient-list">` + uteHtml + `</ul>
-                        </details>
+                        <h4 class="section-title"><i class="fas fa-blender"></i> Utensilios</h4>
+                        <ul class="ingredient-list">` + uteHtml + `</ul>
                     </div>
                     <div class="col-12">
-                        <details>
+                        <details class="receta-pasos">
                             <summary><i class="fas fa-clipboard-list"></i> <strong>Receta</strong></summary>
                             <ol class="pasos-lista">` + pasHtml + `</ol>
                         </details>

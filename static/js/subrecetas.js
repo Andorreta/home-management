@@ -355,7 +355,7 @@
         const aportesIng = receta.aportes_subrecetas && receta.aportes_subrecetas.ingredientes;
         const extrasIng = aportesExtras(aportesIng, Object.keys(receta.ingredientes || {}));
         if ((receta.ingredientes && Object.keys(receta.ingredientes).length) || extrasIng.length) {
-            html += '<div class="section-title"><i class="fas fa-leaf"></i> Ingredientes</div><ul class="ingredient-list">';
+            html += '<h4 class="section-title"><i class="fas fa-leaf"></i> Ingredientes</h4><ul class="ingredient-list">';
             Object.keys(receta.ingredientes || {}).forEach(function (clave) {
                 const dato = receta.ingredientes[clave];
                 const opcional = !!(dato && typeof dato === 'object' && dato.opcional === true);
@@ -369,8 +369,11 @@
             });
             // Lo que solo trae una subreceta también hace falta para cocinar: se añade
             // a la misma lista, con sus sustitutos y con la «i» de su origen.
+            const cantidades = (receta.aportes_subrecetas && receta.aportes_subrecetas.cantidades) || {};
             extrasIng.forEach(function (extra) {
+                const qty = cantidades[extra.clave];
                 html += '<li class="item-aportado">' + nombreIngredienteHtml(extra.clave) +
+                        (qty ? ': ' + esc(qty) : '') +
                         ' ' + aportesEtiqueta(extra.nombres) + '</li>';
             });
             html += '</ul>';
@@ -381,7 +384,7 @@
         const aportesUt = receta.aportes_subrecetas && receta.aportes_subrecetas.utensilios;
         const extrasUt = aportesExtras(aportesUt, receta.utensilios || []);
         if ((receta.utensilios && receta.utensilios.length) || extrasUt.length) {
-            html += '<div class="section-title"><i class="fas fa-blender"></i> Utensilios</div>' +
+            html += '<h4 class="section-title"><i class="fas fa-blender"></i> Utensilios</h4>' +
                     '<ul class="ingredient-list">' +
                     (receta.utensilios || []).map(function (u) {
                         const aporte = aportesEtiqueta(aportesDe(aportesUt, u));
@@ -394,7 +397,7 @@
                     }).join('') + '</ul>';
         }
 
-        html += '<div class="section-title"><i class="fas fa-clipboard-list"></i> Preparación</div>';
+        html += '<h4 class="section-title"><i class="fas fa-clipboard-list"></i> Preparación</h4>';
         if (receta.pasos && receta.pasos.length) {
             html += '<ol class="recipe-steps pasos-lista">' + pasosHtml(receta.pasos, pilaAbierta) + '</ol>';
         } else {
@@ -402,7 +405,7 @@
         }
 
         if (receta.notas) {
-            html += '<div class="section-title"><i class="fas fa-sticky-note"></i> Notas</div><p>' +
+            html += '<h4 class="section-title"><i class="fas fa-sticky-note"></i> Notas</h4><p>' +
                     esc(receta.notas) + '</p>';
         }
 
@@ -699,8 +702,8 @@
     function aportesResumen(aportes) {
         const arbol = (aportes && aportes.arbol) || [];
         if (!arbol.length) return '';
-        let html = '<div class="aportes-resumen"><div class="section-title">' +
-                   '<i class="fas fa-diagram-project"></i> Usa estas recetas</div>';
+        let html = '<div class="aportes-resumen"><h4 class="section-title">' +
+                   '<i class="fas fa-diagram-project"></i> Usa estas recetas</h4>';
         arbol.forEach(function (rama) {
             html += '<div class="aportes-rama">';
             html += '<span class="aportes-nombre">' + esc(rama.nombre) + '</span>';

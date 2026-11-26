@@ -1,10 +1,79 @@
 /* Estilos personalizados de home-management */
 
+/* ---------- Tokens: tema claro (por defecto) ---------- */
+:root {
+    --hm-bg: #f6f8fa;
+    --hm-surface: #ffffff;
+    --hm-surface-2: #f8f9fa;
+    --hm-surface-3: #eef3f8;
+    --hm-surface-4: #e9ecef;
+    --hm-border: #dee2e6;
+    --hm-border-soft: #e9ecef;
+    --hm-text: #212529;
+    --hm-muted: #5c636a;
+    --hm-muted-strong: #495057;
+    --hm-accent: #0d6efd;
+    --hm-accent-strong: #0a58ca;
+    --hm-accent-soft: #e7f1ff;
+    --hm-accent-line: #b6d4fe;
+    --hm-focus: #0d6efd;
+    --hm-header-1: #0b5ed7;
+    --hm-header-2: #004085;
+    --hm-header-ink: #ffffff;
+    --hm-header-pill: rgba(255, 255, 255, 0.5);
+    --hm-warn-bg: #fffbea;
+    --hm-warn-line: #ffe69c;
+    --hm-warn-ink: #8a6d1c;
+    --hm-highlight-bg: #fff3cd;
+    --hm-ingreso: #1b7a35;
+    --hm-gasto: #b02a37;
+    --hm-footer-bg: #343a40;
+    --hm-footer-ink: #f8f9fa;
+    --hm-chart-text: #495057;
+    --hm-chart-grid: #dee2e6;
+    --hm-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    --hm-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- Tokens: tema oscuro ---------- */
+[data-bs-theme="dark"] {
+    --hm-bg: #101419;
+    --hm-surface: #1a212a;
+    --hm-surface-2: #232b36;
+    --hm-surface-3: #263241;
+    --hm-surface-4: #2c3542;
+    --hm-border: #3a4553;
+    --hm-border-soft: #2c3542;
+    --hm-text: #e9edf2;
+    --hm-muted: #aab4c0;
+    --hm-muted-strong: #c5cdd6;
+    --hm-accent: #6ea8fe;
+    --hm-accent-strong: #9ec5fe;
+    --hm-accent-soft: #1d314c;
+    --hm-accent-line: #33506f;
+    --hm-focus: #8bb4ff;
+    --hm-header-1: #10305e;
+    --hm-header-2: #061a35;
+    --hm-warn-bg: #343019;
+    --hm-warn-line: #5c4d22;
+    --hm-warn-ink: #e8d38b;
+    --hm-highlight-bg: #3d3417;
+    --hm-ingreso: #7fd39a;
+    --hm-gasto: #ff9a9a;
+    --hm-footer-bg: #0b0f14;
+    --hm-footer-ink: #c5cdd6;
+    --hm-chart-text: #c5cdd6;
+    --hm-chart-grid: #3a4553;
+    --hm-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --hm-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
 /* ---------- Base ---------- */
 body {
     padding-top: 0;
-    background-color: #f8f9fa;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--hm-bg);
+    color: var(--hm-text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -14,6 +83,24 @@ main.container {
     flex: 1 0 auto;
 }
 
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.45rem; }
+h3 { font-size: 1.2rem; }
+h4 { font-size: 1.05rem; }
+h5 { font-size: 1rem; }
+
+/* ---------- Movimiento reducido ---------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* Enlace de salto para navegación por teclado */
 .skip-link {
     position: absolute;
@@ -21,9 +108,9 @@ main.container {
     left: 1rem;
     z-index: 2000;
     padding: 0.6rem 1rem;
-    background: #fff;
-    color: #0056b3;
-    border: 2px solid #0056b3;
+    background: var(--hm-surface);
+    color: var(--hm-accent-strong);
+    border: 2px solid var(--hm-accent-strong);
     border-radius: 6px;
     font-weight: 600;
     text-decoration: none;
@@ -39,24 +126,34 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-    outline: 3px solid #0d6efd;
+    outline: 3px solid var(--hm-focus);
     outline-offset: 2px;
 }
 
 /* ---------- Cabecera ---------- */
 .header {
-    background: linear-gradient(135deg, #0b5ed7, #004085);
-    color: #fff;
-    padding: 1.5rem 0;
-    margin-bottom: 2rem;
-    border-radius: 0 0 15px 15px;
+    background: linear-gradient(135deg, var(--hm-header-1), var(--hm-header-2));
+    color: var(--hm-header-ink);
+    padding: 1rem 0 1.1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0 0 12px 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    /* Se queda pegada arriba: es la navegación de una app que se usa en el móvil */
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    transition: padding 0.2s ease, margin 0.2s ease;
+}
+
+.header .container {
+    position: relative;
 }
 
 .header h1 {
     margin: 0;
     font-weight: 700;
-    font-size: 2rem;
+    font-size: 1.4rem;
+    padding-right: 2.75rem;      /* huele el botón de tema, que va a la derecha */
 }
 
 .header h1 i {
@@ -64,9 +161,9 @@ summary:focus-visible {
 }
 
 .header p {
-    margin: 0.5rem 0 0;
-    opacity: 0.9;
-    font-size: 1.05rem;
+    margin: 0.25rem 0 0;
+    opacity: 0.85;
+    font-size: 0.92rem;
 }
 
 /* Los iconos dentro de la cabecera heredan el color blanco */
@@ -79,11 +176,63 @@ summary:focus-visible {
     margin-right: 0.4rem;
 }
 
+/* Botón de tema claro/oscuro: círculo discreto en la esquina de la cabecera */
+.tema-toggle {
+    position: absolute;
+    top: 0.1rem;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid var(--hm-header-pill);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.tema-toggle:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.tema-toggle:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+/* La cabecera se encoge al desplazarse: deja la navegación y devuelve pantalla */
+body.cabecera-compacta .header {
+    padding: 0.35rem 0 0.45rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0 0 8px 8px;
+}
+
+body.cabecera-compacta .header p {
+    display: none;
+}
+
+body.cabecera-compacta .header h1 {
+    font-size: 1rem;
+    padding-right: 2.5rem;
+}
+
+body.cabecera-compacta .tema-toggle {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.8rem;
+}
+
 /* ---------- Navegación ---------- */
 .view-nav {
     display: flex;
-    gap: 10px;
-    margin-top: 1.25rem;
+    gap: 8px;
+    margin-top: 0.85rem;
     flex-wrap: wrap;
 }
 
@@ -92,10 +241,11 @@ summary:focus-visible {
     align-items: center;
     color: #fff;
     text-decoration: none;
-    padding: 8px 20px;
+    padding: 6px 16px;
     border-radius: 50px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--hm-header-pill);
     font-weight: 500;
+    font-size: 0.92rem;
     transition: background-color 0.2s, color 0.2s;
 }
 
@@ -116,12 +266,26 @@ summary:focus-visible {
     outline-offset: 2px;
 }
 
+body.cabecera-compacta .view-nav {
+    gap: 5px;
+    margin-top: 0.35rem;
+}
+
+body.cabecera-compacta .view-tab {
+    padding: 3px 10px;
+    font-size: 0.8rem;
+}
+
+body.cabecera-compacta .generacion-global {
+    margin-top: 0.35rem;
+}
+
 /* Flag global de generación en segundo plano */
 .generacion-global {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.75rem;
+    margin-top: 0.65rem;
     padding: 0.35rem 0.8rem;
     border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: 50px;
@@ -132,6 +296,10 @@ summary:focus-visible {
 
 .generacion-global[hidden] {
     display: none;
+}
+
+.generacion-global-texto {
+    font-weight: 500;
 }
 
 .generacion-global-link {
@@ -150,21 +318,25 @@ summary:focus-visible {
 .card {
     border-radius: 10px;
     border: none;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--hm-shadow);
     margin-bottom: 1.5rem;
 }
 
 .menu-card {
-    background-color: #fff;
+    background-color: var(--hm-surface);
     border-radius: 12px;
-    padding: 25px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: 24px;
+    box-shadow: var(--hm-shadow-card);
     margin-bottom: 2rem;
 }
 
+.menu-card h2 {
+    margin-bottom: 0.9rem;
+}
+
 .calendar-card {
-    background-color: #fff;
-    border: 1px solid #e9ecef;
+    background-color: var(--hm-surface);
+    border: 1px solid var(--hm-border-soft);
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 20px;
@@ -176,37 +348,62 @@ summary:focus-visible {
     display: block;
     color: inherit;
     text-decoration: none;
+    height: 100%;
 }
 
 .portal-card .card {
-    padding: 1rem 0;
+    padding: 0.5rem 0;
+    height: 100%;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 @media (hover: hover) {
     .portal-card:hover .card {
-        transform: translateY(-5px);
+        transform: translateY(-4px);
         box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12);
     }
 }
 
 .portal-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    font-size: 2.25rem;
+    margin-bottom: 0.6rem;
 }
 
 .portal-icon i {
-    color: #007bff;
+    color: var(--hm-accent);
 }
 
 .portal-cards .card-title {
     font-weight: 600;
+    font-size: 1.15rem;
+    margin-bottom: 0.25rem;
+}
+
+.portal-cards .card-text {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+/* ---------- Acciones de vista (una sola acción principal por pantalla) ---------- */
+.vista-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.estado-vista {
+    display: block;
+    color: var(--hm-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
 }
 
 /* ---------- Botones ---------- */
 .btn {
     border-radius: 50px;
-    padding: 8px 16px;
+    padding: 7px 16px;
     font-weight: 500;
     transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
@@ -214,6 +411,13 @@ summary:focus-visible {
 .btn-sm {
     border-radius: 8px;
     padding: 4px 10px;
+}
+
+/* Los botones «grandes» ya no lo son: la escala la marca el título, no el botón */
+.btn-lg {
+    font-size: 1rem;
+    padding: 8px 18px;
+    border-radius: 50px;
 }
 
 /* El grupo de botones conserva sus esquinas exteriores redondeadas,
@@ -252,7 +456,7 @@ summary:focus-visible {
 .recipe-detail h3 i,
 .section-title i,
 .meal-title i {
-    color: #007bff;
+    color: var(--hm-accent);
     margin-right: 0.35rem;
 }
 
@@ -269,8 +473,8 @@ details[open] {
 }
 
 summary {
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background-color: var(--hm-surface-2);
+    border: 1px solid var(--hm-border-soft);
     border-radius: 0;
     cursor: pointer;
     padding: 12px 15px;
@@ -279,15 +483,27 @@ summary {
 }
 
 summary:hover {
-    background-color: #e9ecef;
+    background-color: var(--hm-surface-4);
+}
+
+/* Cuerpo de la ficha de un plato: ya no lleva tres <details> dentro */
+.sub-details {
+    padding: 0.25rem 0.75rem 0.5rem;
+    border-top: 1px solid var(--hm-border-soft);
+}
+
+/* Los pasos de la receta siguen plegados dentro de la ficha del plato */
+.receta-pasos summary {
+    font-size: 0.95rem;
+    padding: 9px 12px;
 }
 
 .shopping-list {
-    background-color: #fff;
+    background-color: var(--hm-surface);
     border-radius: 10px;
     padding: 20px;
     margin: 20px 0;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--hm-border-soft);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -296,20 +512,32 @@ summary:hover {
     font-weight: 600;
 }
 
+.menu-view {
+    display: block;
+}
+
+.menu-view > h2 {
+    margin-bottom: 0.75rem;
+}
+
 /* ---------- Días y comidas ---------- */
 .day-card {
-    background-color: #fff;
-    border-left: 4px solid #007bff;
+    background-color: var(--hm-surface);
+    border-left: 4px solid var(--hm-accent);
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 15px;
 }
 
+.day-card h4 {
+    margin-bottom: 0.35rem;
+}
+
 .meal-title {
-    font-size: 1.2em;
+    font-size: 1rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
-    color: #007bff;
+    color: var(--hm-accent-strong);
 }
 
 /* ---------- Listas de ingredientes ---------- */
@@ -320,24 +548,83 @@ summary:hover {
 
 .ingredient-list li {
     padding: 5px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--hm-border-soft);
 }
 
 .ingredient-list li:last-child {
     border-bottom: none;
 }
 
+/* Los opcionales se distinguen por el color del texto, no bajando el contraste */
 .optional-ingredient {
-    opacity: 0.8;
+    opacity: 1;
+    color: var(--hm-muted);
 }
 
 .optional-ingredient strong {
-    color: #6c757d;
+    color: inherit;
 }
 
 /* Autocompletado de ingredientes en el alta/edición de recetas */
 .ing-nombre-col {
     position: relative;
+}
+
+.ing-nombre {
+    width: 100%;
+}
+
+/* Cada ingrediente del editor es una caja suave, como las cajas de los pasos */
+.ing-row {
+    background-color: var(--hm-surface-2);
+    border: 1px solid var(--hm-border-soft);
+    border-radius: 8px;
+    padding: 0.55rem 0.6rem 0.45rem;
+    margin-bottom: 0.6rem;
+}
+
+.ing-cantidad {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+/* Nombre > cantidad > unidad: la cantidad es el dato que se corrige */
+.ing-val {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 9rem;
+}
+
+.ing-unidad {
+    flex: 0 0 auto;
+    width: 7rem;
+    max-width: 7rem;
+}
+
+.ing-alterns {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.ing-opcional-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 1.75rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: 0.35rem;
+    color: var(--hm-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.ing-opcional {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
 }
 
 .ing-sugerencias {
@@ -349,8 +636,8 @@ summary:hover {
     margin-top: 2px;
     max-height: 240px;
     overflow-y: auto;
-    background: #fff;
-    border: 1px solid #dee2e6;
+    background: var(--hm-surface);
+    border: 1px solid var(--hm-border);
     border-radius: 0.375rem;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
@@ -365,9 +652,9 @@ summary:hover {
     text-align: left;
     padding: 0.5rem 0.75rem;
     border: 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--hm-border-soft);
     background: transparent;
-    color: #212529;
+    color: var(--hm-text);
     font-size: 0.95rem;
 }
 
@@ -378,7 +665,7 @@ summary:hover {
 .ing-sug-item:hover,
 .ing-sug-item:focus,
 .ing-sug-item.active {
-    background: #eef4ff;
+    background: var(--hm-accent-soft);
 }
 
 .ing-sug-nombre {
@@ -388,46 +675,46 @@ summary:hover {
 .ing-sug-alias {
     display: block;
     font-size: 0.8rem;
-    color: #6c757d;
+    color: var(--hm-muted);
 }
 
 .ing-sug-usos {
     float: right;
     margin-left: 0.5rem;
     font-size: 0.8rem;
-    color: #6c757d;
+    color: var(--hm-muted);
 }
 
 .ing-hint {
-    color: #0d6efd;
+    color: var(--hm-accent);
 }
 
 .recalentar {
-    color: #666;
+    color: var(--hm-muted);
     font-style: italic;
     font-size: 0.95em;
 }
 
 .opcional {
-    color: #666;
+    color: var(--hm-muted);
     font-size: 0.9em;
     font-style: italic;
 }
 
 .highlight {
-    background-color: #fff3cd;
+    background-color: var(--hm-highlight-bg);
     padding: 2px 4px;
     border-radius: 3px;
 }
 
 /* ---------- Secciones y avisos ---------- */
+/* Es un título real (h3/h4): el tamaño lo marca su nivel, no una clase. */
 .section-title {
-    font-size: 1.1em;
     font-weight: 600;
-    margin: 15px 0 10px;
-    padding: 8px 0;
-    border-bottom: 2px solid #007bff;
-    color: #333;
+    margin: 1rem 0 0.6rem;
+    padding: 0 0 0.35rem;
+    border-bottom: 1px solid var(--hm-border);
+    color: var(--hm-text);
 }
 
 .alert {
@@ -445,14 +732,14 @@ summary:hover {
 
 /* ---------- Recetas ---------- */
 .recipe-card {
-    border-left: 3px solid #007bff;
+    border-left: 3px solid var(--hm-accent);
     margin-bottom: 15px;
 }
 
 .recipe-detail {
-    background-color: #fff;
-    border: 1px solid #e9ecef;
-    border-left: 4px solid #007bff;
+    background-color: var(--hm-surface);
+    border: 1px solid var(--hm-border-soft);
+    border-left: 4px solid var(--hm-accent);
     border-radius: 8px;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -460,7 +747,7 @@ summary:hover {
 
 .recipe-detail h3 {
     margin-bottom: 1rem;
-    color: #007bff;
+    color: var(--hm-accent);
 }
 
 .recipe-top {
@@ -484,8 +771,8 @@ summary:hover {
     border: 0;
     border-bottom: 1px dashed #8b98a5;
     border-radius: 6px;
-    background-color: #eef3f8;
-    color: #333;
+    background-color: var(--hm-surface-3);
+    color: var(--hm-text);
     font: inherit;
     font-size: 0.95em;
     line-height: 1.4;
@@ -494,7 +781,7 @@ summary:hover {
 }
 
 .subreceta-chip i {
-    color: #495057;
+    color: var(--hm-muted-strong);
     font-size: 0.85em;
 }
 
@@ -506,31 +793,35 @@ summary:hover {
 }
 
 .subreceta-chip:hover {
-    background-color: #e2eaf3;
+    background-color: var(--hm-accent-soft);
 }
 
 .subreceta-chip:focus-visible {
-    outline: 2px solid #007bff;
+    outline: 2px solid var(--hm-accent);
     outline-offset: 2px;
 }
 
 /* Enlace que ya no apunta a ninguna receta guardada */
 .subreceta-rota {
-    background-color: #fdf3d7;
-    border-bottom-color: #b08a2e;
-    color: #6b5210;
+    background-color: var(--hm-warn-bg);
+    border-bottom-color: var(--hm-warn-line);
+    color: var(--hm-warn-ink);
     cursor: help;
 }
 
 .subreceta-rota i {
-    color: #8a6d1f;
+    color: var(--hm-warn-ink);
+}
+
+.subreceta-chip-aviso {
+    color: var(--hm-warn-ink);
 }
 
 /* La subreceta ya está abierta más arriba en la misma cadena */
 .subreceta-chip-anidada {
-    background-color: #f1f3f5;
+    background-color: var(--hm-surface-4);
     border-bottom-style: solid;
-    color: #6c757d;
+    color: var(--hm-muted);
     cursor: default;
 }
 
@@ -541,9 +832,9 @@ summary:hover {
 }
 
 .badge-usada {
-    background-color: #eef3f8;
-    border: 1px solid #d7e0e8;
-    color: #495057;
+    background-color: var(--hm-surface-3);
+    border: 1px solid var(--hm-border);
+    color: var(--hm-muted-strong);
     font-weight: 500;
 }
 
@@ -557,8 +848,8 @@ summary:hover {
     margin-top: 2px;
     max-height: 220px;
     overflow-y: auto;
-    background-color: #fff;
-    border: 1px solid #d7e0e8;
+    background-color: var(--hm-surface);
+    border: 1px solid var(--hm-border);
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
@@ -568,20 +859,20 @@ summary:hover {
     display: inline-block;
     margin: 0 2px;
     padding: 1px 6px;
-    border: 1px solid #d7e0e8;
+    border: 1px solid var(--hm-border);
     border-radius: 5px;
-    background-color: #eef3f8;
-    color: #333;
+    background-color: var(--hm-surface-3);
+    color: var(--hm-text);
     font-weight: 500;
 }
 
 .sub-info-titulo {
     font-weight: 600;
-    color: #495057;
+    color: var(--hm-muted-strong);
 }
 
 .text-warning-sub {
-    color: #8a6d1f;
+    color: var(--hm-warn-ink);
 }
 
 .subreceta-ruta {
@@ -589,14 +880,14 @@ summary:hover {
     flex-wrap: wrap;
     align-items: center;
     gap: 4px;
-    color: #6c757d;
+    color: var(--hm-muted);
 }
 
 .subreceta-ruta-enlace {
     border: 0;
     padding: 0;
     background: none;
-    color: #495057;
+    color: var(--hm-muted-strong);
     font: inherit;
     text-decoration: underline;
     text-decoration-style: dotted;
@@ -604,12 +895,12 @@ summary:hover {
 }
 
 .subreceta-ruta-enlace:hover {
-    color: #007bff;
+    color: var(--hm-accent);
 }
 
 /* La última posición del breadcrumb es la receta que se está viendo. */
 .subreceta-ruta-actual {
-    color: #212529;
+    color: var(--hm-text);
     font-weight: 600;
 }
 
@@ -629,7 +920,7 @@ summary:hover {
 .confirm-modal-lineas {
     margin: 0;
     padding-left: 1.2rem;
-    color: #495057;
+    color: var(--hm-muted-strong);
 }
 
 /* ---------- Calendario ---------- */
@@ -649,12 +940,65 @@ summary:hover {
 .flatpickr-calendar.inline {
     margin: 0 auto;
     box-shadow: none;
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--hm-border-soft);
 }
 
+/* En tema oscuro el calendario también se pinta oscuro (flatpickr trae fondo
+   blanco fijo y, si no, sus números quedan claros sobre blanco). */
+[data-bs-theme="dark"] .flatpickr-calendar {
+    background-color: var(--hm-surface);
+    color: var(--hm-text);
+}
+
+[data-bs-theme="dark"] .flatpickr-calendar.inline {
+    border-color: var(--hm-border);
+}
+
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month,
+[data-bs-theme="dark"] .flatpickr-current-month,
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+[data-bs-theme="dark"] .flatpickr-current-month input.cur-year,
+[data-bs-theme="dark"] .flatpickr-day {
+    color: var(--hm-text);
+}
+
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months {
+    background-color: var(--hm-surface-2);
+}
+
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month svg,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month svg {
+    fill: var(--hm-text);
+}
+
+[data-bs-theme="dark"] .flatpickr-weekday,
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.flatpickr-disabled {
+    color: var(--hm-muted);
+}
+
+[data-bs-theme="dark"] .flatpickr-day:hover,
+[data-bs-theme="dark"] .flatpickr-day:focus {
+    background-color: var(--hm-surface-3);
+    border-color: var(--hm-surface-3);
+}
+
+[data-bs-theme="dark"] .flatpickr-day.today {
+    border-color: var(--hm-accent);
+}
+
+[data-bs-theme="dark"] .flatpickr-day.today:hover {
+    background-color: var(--hm-surface-3);
+}
+
+/* El color del menú se usa en el tinte del día (y en la leyenda), no como
+   fondo puro: así el número oscuro cumple contraste AA en toda la paleta. */
 .flatpickr-day.menu-day {
-    background-color: var(--menu-color, #e9ecef);
-    border-color: var(--menu-color, #e9ecef);
+    background-color: var(--menu-fill, #e9ecef);
+    border-color: var(--menu-fill, #e9ecef);
     color: #212529;
     cursor: pointer;
     border-radius: 6px;
@@ -662,12 +1006,12 @@ summary:hover {
 
 .flatpickr-day.menu-day:hover,
 .flatpickr-day.menu-day.selected {
-    background-color: var(--menu-color, #e9ecef);
+    background-color: var(--menu-fill, #e9ecef);
     filter: brightness(0.9);
 }
 
 .flatpickr-day.today {
-    box-shadow: inset 0 0 0 2px #0d6efd;
+    box-shadow: inset 0 0 0 2px var(--hm-focus);
 }
 
 .calendar-legend {
@@ -693,7 +1037,7 @@ summary:hover {
 }
 
 .legend-item:hover {
-    background-color: #f1f3f5;
+    background-color: var(--hm-surface-4);
 }
 
 .legend-swatch {
@@ -726,19 +1070,19 @@ summary:hover {
 }
 
 .recipe-list-item:hover {
-    background-color: #f1f3f5;
+    background-color: var(--hm-surface-4);
 }
 
 .recipe-list-item.active {
-    background-color: #e7f1ff;
+    background-color: var(--hm-accent-soft);
     font-weight: 600;
 }
 
 /* ---------- Preferencias ---------- */
 .pref-chip {
     display: inline-block;
-    background-color: #eef3f8;
-    border: 1px solid #d7e3ef;
+    background-color: var(--hm-surface-3);
+    border: 1px solid var(--hm-border);
     border-radius: 12px;
     padding: 3px 10px;
     margin: 2px 3px;
@@ -756,6 +1100,35 @@ summary:hover {
     display: block;
 }
 
+/* Importes y marcas de los movimientos: clase en vez de color en línea */
+.mov-importe-gasto,
+.mov-importe-ingreso {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+.mov-importe-gasto { color: var(--hm-gasto); }
+.mov-importe-ingreso { color: var(--hm-ingreso); }
+.mov-icono-gasto { color: var(--hm-gasto); }
+.mov-icono-ingreso { color: var(--hm-ingreso); }
+
+.selector-mes {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.selector-mes > .form-select {
+    min-width: 0;
+}
+
+.selector-mes .mes-nombre {
+    flex: 1 1 8rem;
+}
+
+.selector-mes .mes-anio {
+    flex: 0 1 6rem;
+}
+
 @media (max-width: 991.98px) {
     .fechas-form > .col-md-4 {
         width: 100%;
@@ -764,8 +1137,8 @@ summary:hover {
 
 /* ---------- Footer ---------- */
 .footer {
-    background-color: #343a40;
-    color: #f8f9fa;
+    background-color: var(--hm-footer-bg);
+    color: var(--hm-footer-ink);
     margin-top: 3rem;
     padding: 1.5rem 0;
     text-align: center;
@@ -774,6 +1147,41 @@ summary:hover {
 
 .footer p {
     opacity: 0.95;
+}
+
+/* ---------- Volver arriba ---------- */
+.volver-arriba {
+    position: fixed;
+    left: 1rem;
+    bottom: 1rem;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--hm-border);
+    border-radius: 50%;
+    background-color: var(--hm-surface);
+    color: var(--hm-accent-strong);
+    font-size: 1rem;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+}
+
+.volver-arriba[hidden] {
+    display: none;
+}
+
+.volver-arriba:hover {
+    background-color: var(--hm-accent-soft);
+}
+
+.volver-arriba:focus-visible {
+    outline: 3px solid var(--hm-focus);
+    outline-offset: 2px;
 }
 
 /* ---------- Responsive ---------- */
@@ -787,11 +1195,7 @@ summary:hover {
     }
 
     .header h1 {
-        font-size: 1.8rem;
-    }
-
-    .section-title {
-        font-size: 1em;
+        font-size: 1.25rem;
     }
 
     .col-md-6 {
@@ -805,31 +1209,43 @@ summary:hover {
     }
 
     .header {
-        padding: 1rem 0;
+        padding: 0.65rem 0 0.7rem;
         margin-bottom: 1rem;
         border-radius: 0 0 10px 10px;
     }
 
     .header h1 {
-        font-size: 1.55rem;
+        font-size: 1.15rem;
+        padding-right: 2.1rem;
     }
 
     .header p {
-        margin-top: 0.25rem;
-        font-size: 0.95rem;
+        margin-top: 0.15rem;
+        font-size: 0.82rem;
+    }
+
+    .tema-toggle {
+        width: 1.9rem;
+        height: 1.9rem;
+        font-size: 0.8rem;
     }
 
     .view-nav {
-        gap: 6px;
-        margin-top: 0.8rem;
-        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 0.5rem;
     }
 
+    /* En el móvil los iconos son decorativos (el texto dice lo mismo): sin ellos
+       las cinco pestañas entran en una sola línea, en vez de partir la cabecera. */
     .view-tab {
         flex: 0 0 auto;
-        padding: 6px 12px;
-        font-size: 0.85rem;
+        padding: 4px 8px;
+        font-size: 0.79rem;
         white-space: nowrap;
+    }
+
+    .view-tab i {
+        display: none;
     }
 
     .chart-wrap {
@@ -862,11 +1278,11 @@ summary:hover {
     }
 
     .tabla-cards tr {
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--hm-border);
         border-radius: 6px;
         margin-bottom: 0.75rem;
         padding: 0.4rem 0.6rem;
-        background: #fff;
+        background: var(--hm-surface);
     }
 
     .tabla-cards td {
@@ -883,7 +1299,7 @@ summary:hover {
         content: attr(data-label);
         font-weight: 600;
         text-align: left;
-        color: #5c636a;
+        color: var(--hm-muted);
     }
 
     .tabla-cards td[data-label=""] {
@@ -929,7 +1345,7 @@ summary:hover {
 .fila-num {
     grid-area: 1 / 1;
     text-align: right;
-    color: #6c757d;
+    color: var(--hm-muted);
     font-size: 0.85rem;
     padding-top: 0.5rem;
 }
@@ -969,14 +1385,15 @@ summary:hover {
     border: 0;
     border-radius: 0.375rem;
     background-color: transparent;
-    color: #0d6efd;
+    color: var(--hm-accent);
     font-size: 0.85rem;
     line-height: 1;
+    touch-action: manipulation;
 }
 
 .fila-btn:hover:not(:disabled) {
-    background-color: #e7f1ff;
-    color: #0a58ca;
+    background-color: var(--hm-accent-soft);
+    color: var(--hm-accent-strong);
 }
 
 .fila-btn:disabled {
@@ -985,19 +1402,19 @@ summary:hover {
 
 /* El botón de «paso opcional» queda pulsado mientras el paso lo está */
 .fila-btn.fila-btn-activo {
-    background-color: #fff3cd;
-    color: #664d03;
+    background-color: var(--hm-warn-bg);
+    color: var(--hm-warn-ink);
 }
 
 /* Paso marcado como opcional: la caja se tinta en tono suave */
 .fila-item.fila-opcional .fila-input {
-    background-color: #fffbea;
-    border-color: #ffe69c;
+    background-color: var(--hm-warn-bg);
+    border-color: var(--hm-warn-line);
 }
 
 /* Etiqueta «opcional» en pasos ya pintados (ficha, plan y modales) */
 .paso-opcional {
-    color: #8a6d1c;
+    color: var(--hm-warn-ink);
     font-size: 0.85em;
     font-style: italic;
     white-space: nowrap;
@@ -1005,19 +1422,19 @@ summary:hover {
 
 /* Sustitutos de un ingrediente: «pasta / pasta fresca / ñoquis» */
 .ing-alternativos {
-    color: #6c757d;
+    color: var(--hm-muted);
     font-weight: 400;
 }
 
 .ing-altern-cantidad {
-    color: #8a6d1c;
+    color: var(--hm-warn-ink);
     white-space: nowrap;
 }
 
 /* Chip encadenado: el paso es una subreceta cuyo primer paso es otra subreceta,
    y se muestran juntas en el mismo paso («Pasta con atún y tomate → Pasta cocida») */
 .subreceta-chip-flecha {
-    color: #6c757d;
+    color: var(--hm-muted);
     font-weight: 600;
 }
 
@@ -1030,7 +1447,7 @@ summary:hover {
 }
 
 .altern-o {
-    color: #6c757d;
+    color: var(--hm-muted);
     font-size: 0.85rem;
     flex: 0 0 auto;
 }
@@ -1046,9 +1463,11 @@ summary:hover {
 }
 
 .altern-add {
-    text-decoration: none;
-    font-size: 0.85rem;
-    padding: 0;
+    margin-top: 0.35rem;
+}
+
+.altern-del {
+    flex: 0 0 auto;
 }
 
 /* Buscador que abre el botón de enlace, justo debajo de su paso */
@@ -1058,18 +1477,22 @@ summary:hover {
     margin-top: 0.35rem;
 }
 
+.fila-sub-input {
+    width: 100%;
+}
+
 .fila-item.fila-destino .fila-buscador {
     margin-bottom: 0.15rem;
 }
 
 /* El paso al que irá el enlace que se está escribiendo */
 .fila-item.fila-destino .fila-input {
-    border-color: #0a58ca;
+    border-color: var(--hm-accent-strong);
     box-shadow: 0 0 0 0.2rem rgba(10, 88, 202, 0.15);
 }
 
 .rc-avanzado summary {
-    color: #6c757d;
+    color: var(--hm-muted);
     font-size: 0.9rem;
     cursor: pointer;
 }
@@ -1083,13 +1506,23 @@ summary:hover {
 }
 
 /* ---------- Lo que aportan las subrecetas ---------- */
-/* Va en la misma lista que los de la receta, pero se distingue y dice de dónde viene */
+/* Va en la misma lista que los de la receta: el punto de la lista se pinta con el
+   color de acento y el fondo suave solo al pasar el ratón (antes toda la fila azul). */
 .item-aportado {
-    color: #344b63;
-    background-color: #eef4ff;
-    border-left: 3px solid #6ea8fe;
-    border-radius: 4px;
-    padding-left: 0.4rem;
+    color: inherit;
+    background-color: transparent;
+    padding-left: 0;
+    border-left: 0;
+}
+
+.item-aportado::marker {
+    color: var(--hm-accent);
+}
+
+@media (hover: hover) {
+    .item-aportado:hover {
+        background-color: var(--hm-accent-soft);
+    }
 }
 
 /* De dónde viene lo que aporta una subreceta: solo una «i» en un círculo; el
@@ -1098,23 +1531,36 @@ summary:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 1.5rem;
+    height: 1.5rem;
     margin-left: 0.3rem;
     padding: 0;
-    border: 1px solid #b6d4fe;
+    border: 1px solid var(--hm-accent-line);
     border-radius: 50%;
-    background-color: #eef4ff;
-    color: #0a58ca;
-    font-size: 0.72rem;
+    background-color: var(--hm-accent-soft);
+    color: var(--hm-accent-strong);
+    font-size: 0.85rem;
     line-height: 1;
     cursor: help;
     vertical-align: middle;
+    position: relative;
+    touch-action: manipulation;
+}
+
+/* Objetivo táctil ampliado (≈44 px) sin cambiar el tamaño visible */
+@media (pointer: coarse) {
+    .aporte-info::before {
+        content: "";
+        position: absolute;
+        inset: -0.7rem;
+        border-radius: 50%;
+    }
 }
 
 .aporte-info:hover,
 .aporte-info:focus-visible {
-    background-color: #cfe2ff;
+    background-color: var(--hm-accent-soft);
+    border-color: var(--hm-accent-strong);
 }
 
 .aporte-globo {
@@ -1122,10 +1568,10 @@ summary:hover {
     z-index: 2000;                      /* por encima de los modales de Bootstrap */
     max-width: min(18rem, 80vw);
     padding: 0.3rem 0.55rem;
-    border: 1px solid #b6d4fe;
+    border: 1px solid var(--hm-accent-line);
     border-radius: 6px;
-    background-color: #fff;
-    color: #084298;
+    background-color: var(--hm-surface);
+    color: var(--hm-accent-strong);
     font-size: 0.85rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
     pointer-events: none;               /* que el globo no tape el botón */
@@ -1138,14 +1584,14 @@ summary:hover {
 .aportes-resumen {
     margin-top: 1rem;
     padding: 0.6rem 0.8rem;
-    border: 1px solid #d7e3f5;
+    border: 1px solid var(--hm-accent-line);
     border-radius: 8px;
-    background-color: #f7faff;
+    background-color: var(--hm-accent-soft);
 }
 
 .aportes-rama {
     padding: 0.35rem 0;
-    border-bottom: 1px dashed #e2e8f0;
+    border-bottom: 1px dashed var(--hm-border);
 }
 
 .aportes-rama:last-of-type {
@@ -1154,22 +1600,22 @@ summary:hover {
 
 .aportes-nombre {
     font-weight: 600;
-    color: #0a58ca;
+    color: var(--hm-accent-strong);
 }
 
 .aportes-anidada {
-    color: #6c757d;
+    color: var(--hm-muted);
     font-size: 0.8rem;
 }
 
 .aportes-detalle {
-    color: #495057;
+    color: var(--hm-muted-strong);
     font-size: 0.85rem;
     margin-top: 0.15rem;
 }
 
 .aportes-detalle i {
-    color: #6c757d;
+    color: var(--hm-muted);
     margin-right: 0.3rem;
 }
 
@@ -1178,8 +1624,24 @@ summary:hover {
 @media (max-width: 767.98px) {
     /* Destinos táctiles suficientes para pulsar con el dedo, sin salir de la fila */
     .fila-btn {
-        width: 2rem;
-        height: 2rem;
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.95rem;
+    }
+
+    .fila-acciones {
+        gap: 0.25rem;
+    }
+
+    .ing-row .btn-sm,
+    .altern-del {
+        min-width: 2.25rem;
+        min-height: 2.25rem;
+    }
+
+    .aporte-info {
+        width: 1.75rem;
+        height: 1.75rem;
         font-size: 0.95rem;
     }
 }
